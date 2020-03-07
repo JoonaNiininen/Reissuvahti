@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Reissuvahti</string>
+    <string name="aloita_uusi_reissu">Aloita uusi reissu</string>
+    <string name="historia_ja_asetukset">Historia ja asetukset</string>
+    <string name="startpoint">startPoint</string>
+    <string name="todo">TODO</string>
+    <string name="button">Button</string>
+    <string name="lis_pys_hdys">Lisää pysähdys</string>
+    <string name="valmis">Valmis</string>
+</resources>
