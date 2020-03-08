@@ -30,6 +30,7 @@
 
 
         <service android:name=".FetchAddressIntentService" />
+
     </application>
 
 </manifest>
