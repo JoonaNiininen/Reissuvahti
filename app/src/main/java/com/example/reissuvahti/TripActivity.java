@@ -3,12 +3,9 @@ package com.example.reissuvahti;
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.location.Location;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Looper;
-import android.provider.ContactsContract;
-import android.util.JsonReader;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -25,37 +22,28 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-
-import org.json.JSONObject;
+import com.google.gson.Gson;
+import com.google.gson.stream.JsonReader;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.net.URLConnection;
-import java.nio.charset.StandardCharsets;
-
-import hu.supercluster.overpasser.library.query.OverpassQuery;
-
-import static hu.supercluster.overpasser.library.output.OutputFormat.JSON;
-import static hu.supercluster.overpasser.library.output.OutputFormat.XML;
 
 public class TripActivity extends AppCompatActivity {
-
     private static final int REQUEST_CODE_LOCATION = 1;
-    Double latitude = 63.826729;
-    Double longitude = 23.1528061;
+    protected Double latitude = 63.826729;
+    protected Double longitude = 23.1528061;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_trip);
-
+        if(latitude == null || longitude == null) {
+            getCurrentLocation();
+        }
         findViewById(R.id.addStop).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -67,6 +55,13 @@ public class TripActivity extends AppCompatActivity {
                             REQUEST_CODE_LOCATION
                     );
                 } else {
+                    if(latitude == null || longitude == null) {
+                        TextView latitudeText = findViewById(R.id.currentStopLatitude);
+                        TextView longitudeText = findViewById(R.id.currentStopLongitude);
+                        latitudeText.setText("Latitude null");
+                        longitudeText.setText("Longitude null");
+                        return;
+                    }
                     AsyncTask.execute(new Runnable() {
                         @Override
                         public void run() {
@@ -95,6 +90,7 @@ public class TripActivity extends AppCompatActivity {
         }
     }
 
+
     private void getCurrentLocation() {
         final LocationRequest locationRequest = new LocationRequest();
         locationRequest.setInterval(5000);
@@ -121,11 +117,6 @@ public class TripActivity extends AppCompatActivity {
                             TextView longitudeText = findViewById(R.id.currentStopLongitude);
                             latitudeText.setText(String.format("%s", latitude));
                             longitudeText.setText(String.format("%s", longitude));
-                            try {
-                                longitudeText.setText(getNearbyLocations());
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
                         }
                     }
                 }, Looper.getMainLooper());
@@ -133,6 +124,8 @@ public class TripActivity extends AppCompatActivity {
 
     public String getNearbyLocations() throws IOException {
         String nearbyLocations = "";
+        URL endpoint = new URL("https://overpass-api.de/api/interpreter");
+        HttpURLConnection urlConn = (HttpURLConnection) endpoint.openConnection();
 
         if(latitude == null && longitude == null) return null;
         String apiQuery = "data=[out:json][timeout:25];node("
@@ -140,9 +133,6 @@ public class TripActivity extends AppCompatActivity {
                 .concat(",").concat(latitude.toString()).concat(",")
                 .concat(longitude.toString())
                 .concat(");node(around:50)[\"shop\"];out body;");
-
-        URL endpoint = new URL("https://overpass-api.de/api/interpreter");
-        HttpURLConnection urlConn = (HttpURLConnection) endpoint.openConnection();
 
         try {
             urlConn.setDoOutput(true);
@@ -154,21 +144,21 @@ public class TripActivity extends AppCompatActivity {
             writer.flush();
             writer.close();
 
-            int asda = urlConn.getResponseCode();
-
-            StringBuilder response;
+            String response;
             BufferedInputStream reader = new BufferedInputStream(urlConn.getInputStream());
-            String line = "";
-            int i = 0;
-            response = new StringBuilder();
-            while ((i=reader.read()) != -1) {
-                response.append((char)i);
-            }
+            InputStreamReader inputStream = new InputStreamReader(reader);
+            JsonReader jsonReader = new JsonReader(inputStream);
+            Gson gson = new Gson();
+
+            LocationName locationName = new LocationName();
+            gson.fromJson(inputStream, LocationName.class);
+            locationName.setLocationName(gson.toString());
+
         } finally {
             urlConn.disconnect();
         }
 
-        return nearbyLocations;
+        return "lol";
 
     }
 
