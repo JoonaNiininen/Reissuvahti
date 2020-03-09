@@ -4,9 +4,11 @@ import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Looper;
 import android.provider.ContactsContract;
+import android.util.JsonReader;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -26,22 +28,28 @@ import com.google.android.gms.location.LocationServices;
 
 import org.json.JSONObject;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 
 import hu.supercluster.overpasser.library.query.OverpassQuery;
 
 import static hu.supercluster.overpasser.library.output.OutputFormat.JSON;
+import static hu.supercluster.overpasser.library.output.OutputFormat.XML;
 
 public class TripActivity extends AppCompatActivity {
 
     private static final int REQUEST_CODE_LOCATION = 1;
-    double latitude;
-    double longitude;
-    boolean isLocation;
+    Double latitude = 63.826729;
+    Double longitude = 23.1528061;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -59,7 +67,16 @@ public class TripActivity extends AppCompatActivity {
                             REQUEST_CODE_LOCATION
                     );
                 } else {
-                    getCurrentLocation();
+                    AsyncTask.execute(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                getNearbyLocations();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                        }
+                    });
                 }
             }
         });
@@ -104,39 +121,55 @@ public class TripActivity extends AppCompatActivity {
                             TextView longitudeText = findViewById(R.id.currentStopLongitude);
                             latitudeText.setText(String.format("%s", latitude));
                             longitudeText.setText(String.format("%s", longitude));
-                            isLocation = true;
+                            try {
+                                longitudeText.setText(getNearbyLocations());
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
                         }
                     }
                 }, Looper.getMainLooper());
     }
 
+    public String getNearbyLocations() throws IOException {
+        String nearbyLocations = "";
 
-    public String[] getNearbyLocations() throws IOException {
-        String[] locationArray = new String[0];
+        if(latitude == null && longitude == null) return null;
+        String apiQuery = "data=[out:json][timeout:25];node("
+                .concat(latitude.toString()).concat(",").concat(longitude.toString())
+                .concat(",").concat(latitude.toString()).concat(",")
+                .concat(longitude.toString())
+                .concat(");node(around:50)[\"shop\"];out body;");
 
-        String apiQuery = new OverpassQuery().format(JSON).timeout(30)
-                .filterQuery().tag("shop")
-                .boundingBox(latitude,longitude,latitude,longitude).end()
-                .output(100).build();
-        byte[] query = apiQuery.getBytes();
-        URL endpoint = new URL("Https://overpass-api.de/api/interpreter");
+        URL endpoint = new URL("https://overpass-api.de/api/interpreter");
         HttpURLConnection urlConn = (HttpURLConnection) endpoint.openConnection();
 
-        DataOutputStream printout = new DataOutputStream(urlConn.getOutputStream());
-        DataInputStream input = new DataInputStream(urlConn.getInputStream());
+        try {
+            urlConn.setDoOutput(true);
+            urlConn.setRequestMethod("POST");
+            urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
-        urlConn.setDoInput (true);
-        urlConn.setDoOutput (true);
-        urlConn.setUseCaches (false);
-        urlConn.connect();
-        if(urlConn.getResponseCode()==200) {
-            printout.write(query);
-            printout.flush();
-            printout.close();
-        } else {
-            Toast.makeText(this, "Connection to API Failed", Toast.LENGTH_SHORT).show();
+            BufferedOutputStream writer = new BufferedOutputStream(urlConn.getOutputStream());
+            writer.write(apiQuery.getBytes());
+            writer.flush();
+            writer.close();
+
+            int asda = urlConn.getResponseCode();
+
+            StringBuilder response;
+            BufferedInputStream reader = new BufferedInputStream(urlConn.getInputStream());
+            String line = "";
+            int i = 0;
+            response = new StringBuilder();
+            while ((i=reader.read()) != -1) {
+                response.append((char)i);
+            }
+        } finally {
+            urlConn.disconnect();
         }
-        return locationArray;
+
+        return nearbyLocations;
+
     }
 
 
