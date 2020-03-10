@@ -1,6 +1,7 @@
 package com.example.reissuvahti;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
@@ -22,21 +23,25 @@ import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
+import com.google.gson.stream.JsonToken;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
 public class TripActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_LOCATION = 1;
+    protected Double latitude = null;
+    protected Double longitude = null;
+    /*
     protected Double latitude = 63.826729;
     protected Double longitude = 23.1528061;
-
+*/
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -45,6 +50,7 @@ public class TripActivity extends AppCompatActivity {
             getCurrentLocation();
         }
         findViewById(R.id.addStop).setOnClickListener(new View.OnClickListener() {
+            @SuppressLint("SetTextI18n")
             @Override
             public void onClick(View v) {
                 if (ContextCompat.checkSelfPermission(
@@ -55,6 +61,9 @@ public class TripActivity extends AppCompatActivity {
                             REQUEST_CODE_LOCATION
                     );
                 } else {
+
+                    final TextView addressText = findViewById(R.id.currentNearbyLocations);
+
                     if(latitude == null || longitude == null) {
                         TextView latitudeText = findViewById(R.id.currentStopLatitude);
                         TextView longitudeText = findViewById(R.id.currentStopLongitude);
@@ -66,12 +75,13 @@ public class TripActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             try {
-                                getNearbyLocations();
+                                addressText.setText(getNearbyLocations());
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
                         }
                     });
+
                 }
             }
         });
@@ -112,6 +122,8 @@ public class TripActivity extends AppCompatActivity {
                                     locationResult.getLocations().get(latestLocationIndex).getLatitude();
                             longitude =
                                     locationResult.getLocations().get(latestLocationIndex).getLongitude();
+                            latitude = round(latitude,6);
+                            longitude = round(longitude, 7);
 
                             TextView latitudeText = findViewById(R.id.currentStopLatitude);
                             TextView longitudeText = findViewById(R.id.currentStopLongitude);
@@ -126,14 +138,16 @@ public class TripActivity extends AppCompatActivity {
         String nearbyLocations = "";
         URL endpoint = new URL("https://overpass-api.de/api/interpreter");
         HttpURLConnection urlConn = (HttpURLConnection) endpoint.openConnection();
-
-        if(latitude == null && longitude == null) return null;
+        if(latitude == null || longitude == null)return null;
+        /*
         String apiQuery = "data=[out:json][timeout:25];node("
                 .concat(latitude.toString()).concat(",").concat(longitude.toString())
                 .concat(",").concat(latitude.toString()).concat(",")
                 .concat(longitude.toString())
-                .concat(");node(around:50)[\"shop\"];out body;");
-
+                .concat(");node(around:150)[\"shop\"];out body;");
+        */
+        String apiQuery = "data=[out:json][timeout:25];node(around:100,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[shop];\n" +
+                "out;");
         try {
             urlConn.setDoOutput(true);
             urlConn.setRequestMethod("POST");
@@ -144,21 +158,55 @@ public class TripActivity extends AppCompatActivity {
             writer.flush();
             writer.close();
 
-            String response;
-            BufferedInputStream reader = new BufferedInputStream(urlConn.getInputStream());
-            InputStreamReader inputStream = new InputStreamReader(reader);
-            JsonReader jsonReader = new JsonReader(inputStream);
-            Gson gson = new Gson();
+            StringBuilder response = new StringBuilder();
+            InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
+            JsonReader reader = new JsonReader(in);
 
-            LocationName locationName = new LocationName();
-            gson.fromJson(inputStream, LocationName.class);
-            locationName.setLocationName(gson.toString());
+            JsonToken testToken = reader.peek();
+            if (testToken == JsonToken.BEGIN_ARRAY) {
+                reader.beginArray();
+                testToken = reader.peek();
+                if (testToken == JsonToken.END_ARRAY) return "";
+                reader.beginObject();
+            } else reader.beginObject();
+            while (reader.hasNext()) {
+                String element = reader.nextName();
+                if (element.equals("elements")) {
+                    testToken = reader.peek();
+                    if (testToken == JsonToken.BEGIN_ARRAY) {
+                        reader.beginArray();
+                        testToken = reader.peek();
+                        if (testToken == JsonToken.END_ARRAY) return "Ei löydetty läheisiä paikkoja";
+                        reader.beginObject();
+                    } else reader.beginObject();
+                    while (reader.hasNext()) {
+                        String tags = reader.nextName();
+                        if (tags.equals("tags")) {
+                            reader.beginObject();
+                            while (reader.hasNext()) {
+                                String name = reader.nextName();
+                                if (name.equals("name")) {
+                                    response = response.append(" "+reader.nextString());
+                                    //break;
+                                } else
+                                    reader.skipValue();
+                            }
+                        } else
+                            reader.skipValue();
+                    }
+                } else
+                    reader.skipValue();
+                }
+            reader.endObject();
+
+            nearbyLocations = response.toString();
 
         } finally {
             urlConn.disconnect();
+
         }
 
-        return "lol";
+        return nearbyLocations;
 
     }
 
@@ -191,6 +239,14 @@ public class TripActivity extends AppCompatActivity {
         Intent finish = new Intent(this, Main.class);
         startActivity(finish);
 
+    }
+
+    public static double round(double value, int places) {
+        if (places < 0) throw new IllegalArgumentException();
+
+        BigDecimal bd = BigDecimal.valueOf(value);
+        bd = bd.setScale(places, RoundingMode.HALF_UP);
+        return bd.doubleValue();
     }
 
 }
