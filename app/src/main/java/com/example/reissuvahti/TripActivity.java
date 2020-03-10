@@ -161,43 +161,59 @@ public class TripActivity extends AppCompatActivity {
             StringBuilder response = new StringBuilder();
             InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
             JsonReader reader = new JsonReader(in);
+            boolean doneReading = false;
 
-            JsonToken testToken = reader.peek();
-            if (testToken == JsonToken.BEGIN_ARRAY) {
-                reader.beginArray();
-                testToken = reader.peek();
-                if (testToken == JsonToken.END_ARRAY) return "";
-                reader.beginObject();
-            } else reader.beginObject();
-            while (reader.hasNext()) {
-                String element = reader.nextName();
-                if (element.equals("elements")) {
+                JsonToken testToken = reader.peek();
+                if (testToken == JsonToken.BEGIN_ARRAY) {
+                    reader.beginArray();
                     testToken = reader.peek();
-                    if (testToken == JsonToken.BEGIN_ARRAY) {
-                        reader.beginArray();
+                    if (testToken == JsonToken.END_ARRAY) return "";
+                    reader.beginObject();
+                } else if (testToken == JsonToken.END_OBJECT) {
+                    reader.endObject();
+                }
+                reader.beginObject();
+                while (reader.hasNext()) {
+                    String element = reader.nextName();
+                    if (element.equals("elements")) {
                         testToken = reader.peek();
-                        if (testToken == JsonToken.END_ARRAY) return "Ei löydetty läheisiä paikkoja";
-                        reader.beginObject();
-                    } else reader.beginObject();
-                    while (reader.hasNext()) {
-                        String tags = reader.nextName();
-                        if (tags.equals("tags")) {
+                        if (testToken == JsonToken.BEGIN_ARRAY) {
+                            reader.beginArray();
+                            testToken = reader.peek();
+                            if (testToken == JsonToken.END_ARRAY)
+                                return "Ei löydetty läheisiä paikkoja";
                             reader.beginObject();
+                        } else reader.beginObject();
+                        while (!doneReading) {
                             while (reader.hasNext()) {
-                                String name = reader.nextName();
-                                if (name.equals("name")) {
-                                    response = response.append(" "+reader.nextString());
-                                    //break;
+                                String tags = reader.nextName();
+                                if (tags.equals("tags")) {
+                                    reader.beginObject();
+                                    while (reader.hasNext()) {
+                                        String name = reader.nextName();
+                                        if (name.equals("name")) {
+                                            response = response.append(" ").append(reader.nextString());
+                                            //break;
+                                        } else
+                                            reader.skipValue();
+                                    }
+
                                 } else
                                     reader.skipValue();
                             }
-                        } else
-                            reader.skipValue();
-                    }
-                } else
-                    reader.skipValue();
+
+                            testToken = reader.peek();
+                            if (testToken == JsonToken.END_OBJECT) reader.endObject();
+                            testToken = reader.peek();
+                            if (testToken == JsonToken.END_ARRAY) return response.toString();
+                            testToken = reader.peek();
+                            if (testToken == JsonToken.BEGIN_OBJECT) reader.beginObject();
+                        }
+                    } else
+                        reader.skipValue();
+
                 }
-            reader.endObject();
+                reader.endObject();
 
             nearbyLocations = response.toString();
 
