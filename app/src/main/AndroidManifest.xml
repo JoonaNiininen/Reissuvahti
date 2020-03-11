@@ -15,12 +15,12 @@
         android:theme="@style/AppTheme">
         <activity
             android:name=".TripActivity"
-            android:parentActivityName=".MainActivity">
+            android:parentActivityName=".Main">
             <meta-data
                 android:name="android.support.PARENT_ACTIVITY"
-                android:value=".MainActivity" />
+                android:value=".Main" />
         </activity>
-        <activity android:name=".MainActivity">
+        <activity android:name=".Main">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -29,7 +29,6 @@
         </activity>
 
 
-        <service android:name=".FetchAddressIntentService" />
     </application>
 
 </manifest>

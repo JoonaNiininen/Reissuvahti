@@ -7,4 +7,5 @@
     <string name="button">Button</string>
     <string name="lis_pys_hdys">Lisää pysähdys</string>
     <string name="valmis">Valmis</string>
+    <string name="textview">TextView</string>
 </resources>
