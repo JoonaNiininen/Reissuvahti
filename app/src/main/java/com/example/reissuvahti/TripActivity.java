@@ -19,12 +19,14 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.reissuvahti.overpass.OverpassLocation;
+import com.example.reissuvahti.overpass.OverpassResponse;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
@@ -33,7 +35,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class TripActivity extends AppCompatActivity {
@@ -45,12 +47,13 @@ public class TripActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_trip);
+
         Button addStop = findViewById(R.id.addStop);
         if(latitude == null || longitude == null) {
-            addStop.setClickable(false);
+            addStop.setEnabled(false);
             getCurrentLocation();
         }
-        addStop.setClickable(true);
+        addStop.setEnabled(true);
         addStop.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("SetTextI18n")
             @Override
@@ -77,15 +80,17 @@ public class TripActivity extends AppCompatActivity {
                         @Override
                         public void run() {
                             try {
-                                List<String> nearby = getNearbyLocations();
+                                List<OverpassLocation> nearby = getNearbyLocations();
                                 if (!nearby.isEmpty()) {
                                     StringBuilder temp = new StringBuilder();
                                     for (int i=0; i<nearby.size(); i++) {
-                                        temp.append(nearby.get(i));
-
+                                        temp.append(nearby.get(i).getTags().getName()).append(" ");
                                     }
                                     addressText.setText(temp);
+                                } else {
+                                    addressText.setText("Ei paikkoja lähistöllä");
                                 }
+
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
@@ -144,8 +149,8 @@ public class TripActivity extends AppCompatActivity {
                 }, Looper.getMainLooper());
     }
 
-    public List<String> getNearbyLocations() throws IOException {
-        List<String> nearbyLocations = new ArrayList<>();
+    public List<OverpassLocation> getNearbyLocations() throws IOException {
+        List<OverpassLocation> nearbyLocations;
         URL endpoint = new URL("https://overpass-api.de/api/interpreter");
         HttpURLConnection urlConn = (HttpURLConnection) endpoint.openConnection();
         if(latitude == null || longitude == null)return null;
@@ -163,67 +168,8 @@ public class TripActivity extends AppCompatActivity {
 
             InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
             JsonReader reader = new JsonReader(in);
-            boolean doneReading = false;
-
-                JsonToken testToken = reader.peek();
-                if (testToken == JsonToken.BEGIN_ARRAY) {
-                    reader.beginArray();
-                    testToken = reader.peek();
-                    if (testToken == JsonToken.END_ARRAY) {
-                        nearbyLocations.add("Virhe 666");
-                        return nearbyLocations;
-                    }
-                    reader.beginObject();
-                } else if (testToken == JsonToken.END_OBJECT) {
-                    reader.endObject();
-                }
-                reader.beginObject();
-                while (reader.hasNext()) {
-                    String element = reader.nextName();
-                    if (element.equals("elements")) {
-                        testToken = reader.peek();
-                        if (testToken == JsonToken.BEGIN_ARRAY) {
-                            reader.beginArray();
-                            testToken = reader.peek();
-                            if (testToken == JsonToken.END_ARRAY) {
-                                nearbyLocations.add("Ei paikkoja lähistöllä");
-                                return nearbyLocations;
-                            }
-                            reader.beginObject();
-                        } else reader.beginObject();
-                        while (!doneReading) {
-                            while (reader.hasNext()) {
-                                String tags = reader.nextName();
-                                if (tags.equals("tags")) {
-                                    reader.beginObject();
-                                    while (reader.hasNext()) {
-                                        String name = reader.nextName();
-                                        if (name.equals("name")) {
-                                            nearbyLocations.add(reader.nextString()+" ");
-                                        }
-                                        else
-                                            reader.skipValue();
-                                    }
-                                } else
-                                    reader.skipValue();
-
-                            }
-
-                            testToken = reader.peek();
-                            if (testToken == JsonToken.END_OBJECT) reader.endObject();
-                            testToken = reader.peek();
-                            if (testToken == JsonToken.END_ARRAY) return nearbyLocations;
-                            testToken = reader.peek();
-                            if (testToken == JsonToken.BEGIN_OBJECT) reader.beginObject();
-                            if (testToken == JsonToken.END_DOCUMENT) doneReading = true;
-                        }
-
-                    } else
-                        reader.skipValue();
-
-                }
-                reader.endObject();
-
+            OverpassResponse overpassResponse = new Gson().fromJson(reader, OverpassResponse.class);
+            nearbyLocations = Arrays.asList(overpassResponse.getElements());
         } finally {
             urlConn.disconnect();
 
