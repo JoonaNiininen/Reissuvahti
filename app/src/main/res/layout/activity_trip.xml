@@ -45,46 +45,6 @@
 
     </LinearLayout>
 
-    <LinearLayout
-        android:id="@+id/tripDestinationGrid"
-        android:layout_width="0dp"
-        android:layout_height="0dp"
-        android:layout_marginStart="24dp"
-        android:layout_marginLeft="24dp"
-        android:layout_marginEnd="24dp"
-        android:layout_marginRight="24dp"
-        android:orientation="vertical"
-        android:scrollbars="vertical"
-        app:layout_constraintBottom_toTopOf="@+id/finishTrip"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tripOverviewBar">
-
-        <Button
-            android:id="@+id/addStop"
-            android:layout_width="match_parent"
-            android:layout_height="120dp"
-            android:text="@string/lis_pys_hdys" />
-
-        <TextView
-            android:id="@+id/currentStopLatitude"
-            android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:layout_marginTop="10dp" />
-
-        <TextView
-            android:id="@+id/currentStopLongitude"
-            android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:layout_marginTop="10dp" />
-
-        <TextView
-            android:id="@+id/currentNearbyLocations"
-            android:layout_width="match_parent"
-            android:layout_height="20dp"
-            android:layout_marginTop="10dp" />
-    </LinearLayout>
-
     <Button
         android:id="@+id/finishTrip"
         android:layout_width="150dp"
@@ -100,5 +60,52 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <ScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="24dp"
+        android:layout_marginLeft="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginRight="24dp"
+        android:layout_marginBottom="24dp"
+        app:layout_constraintBottom_toTopOf="@+id/finishTrip"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tripOverviewBar">
+
+        <LinearLayout
+            android:id="@+id/tripDestinationGrid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:scrollbars="horizontal|vertical"
+            android:verticalScrollbarPosition="right">
+
+            <Button
+                android:id="@+id/addStop"
+                android:layout_width="match_parent"
+                android:layout_height="120dp"
+                android:text="@string/lis_pys_hdys" />
+
+            <TextView
+                android:id="@+id/currentStopLatitude"
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:id="@+id/currentStopLongitude"
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:layout_marginTop="10dp" />
+
+            <TextView
+                android:id="@+id/currentNearbyLocations"
+                android:layout_width="match_parent"
+                android:layout_height="20dp"
+                android:layout_marginTop="10dp" />
+        </LinearLayout>
+    </ScrollView>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
