@@ -35,6 +35,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -49,6 +50,28 @@ public class TripActivity extends AppCompatActivity {
         setContentView(R.layout.activity_trip);
 
         Button addStop = findViewById(R.id.addStop);
+        final List<Button> nearbyButtons = new ArrayList<>();
+
+        addStop.setKeepScreenOn(true);
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyA));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyB));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyC));
+
+        Button.OnClickListener nearbyList = new Button.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (v.isEnabled()) {
+                    Button vb = (Button) v;
+                    String name = ((Button) v).getText().toString();
+                    addLocation(name);
+                }
+            }
+        };
+
+        nearbyButtons.get(0).setOnClickListener(nearbyList);
+        nearbyButtons.get(1).setOnClickListener(nearbyList);
+        nearbyButtons.get(2).setOnClickListener(nearbyList);
+
         if(latitude == null || longitude == null) {
             addStop.setEnabled(false);
             getCurrentLocation();
@@ -82,11 +105,21 @@ public class TripActivity extends AppCompatActivity {
                             try {
                                 List<OverpassLocation> nearby = getNearbyLocations();
                                 if (!nearby.isEmpty()) {
-                                    StringBuilder temp = new StringBuilder();
-                                    for (int i=0; i<nearby.size(); i++) {
-                                        temp.append(nearby.get(i).getTags().getName()).append(" ");
+                                    if(nearby.size()<4) {
+                                        StringBuilder temp = new StringBuilder();
+                                        for (int i = 0; i < nearby.size(); i++) {
+                                            temp.append(nearby.get(i).getTags().getName()).append(" ");
+                                            nearbyButtons.get(i).setText(nearby.get(i).getTags().getName());
+                                        }
+                                        addressText.setText(temp);
+                                    } else {
+                                        StringBuilder temp = new StringBuilder();
+                                        for (int i = 0; i < 3; i++) {
+                                            temp.append(nearby.get(i).getTags().getName()).append(" ");
+                                            nearbyButtons.get(i).setText(nearby.get(i).getTags().getName());
+                                        }
+                                        addressText.setText(temp);
                                     }
-                                    addressText.setText(temp);
                                 } else {
                                     addressText.setText("Ei paikkoja lähistöllä");
                                 }
@@ -138,8 +171,7 @@ public class TripActivity extends AppCompatActivity {
                             longitude =
                                     locationResult.getLocations().get(latestLocationIndex).getLongitude();
                             latitude = round(latitude,6);
-                            longitude = round(longitude, 7);
-
+                            longitude = round(longitude, 6);
                             TextView latitudeText = findViewById(R.id.currentStopLatitude);
                             TextView longitudeText = findViewById(R.id.currentStopLongitude);
                             latitudeText.setText(String.format("%s", latitude));
@@ -180,11 +212,13 @@ public class TripActivity extends AppCompatActivity {
     }
 
 
-    public void addLocation(String name, int id) {
+
+
+    public void addLocation(String name) {
 
         Button testButton = new Button(this);
         testButton.setText(name);
-        testButton.setId(id);
+
         LinearLayout tripOverviewLayout = findViewById(R.id.tripOverviewBar);
         LinearLayout.LayoutParams defaultTripParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
 
