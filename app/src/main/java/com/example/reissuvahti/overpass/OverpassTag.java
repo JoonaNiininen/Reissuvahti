@@ -1,7 +1,7 @@
 package com.example.reissuvahti.overpass;
 
 public class OverpassTag {
-    String name;
+    private String name;
 
     public String getName() {
         return name;

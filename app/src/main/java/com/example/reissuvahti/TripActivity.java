@@ -2,6 +2,7 @@ package com.example.reissuvahti;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
@@ -9,12 +10,15 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -43,40 +47,86 @@ public class TripActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_LOCATION = 1;
     Double latitude = null;
     Double longitude = null;
+    List<String> currentTrip = new ArrayList<>();
+    List<OverpassLocation> nearbyLocations = new ArrayList<>();
+    List<Button> nearbyButtons = new ArrayList<>();
+    List<Button> overviewButtons = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        try
+        {
+            this.getSupportActionBar().hide();
+        }
+        catch (NullPointerException e){
+            e.printStackTrace();
+        }
         setContentView(R.layout.activity_trip);
+        getCurrentLocation();
+    }
 
+    @Override
+    public void onBackPressed() {
+        new AlertDialog.Builder(this)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle("Oletko varma?")
+                .setMessage("Haluatko varmasti peruuttaa reissun?")
+                .setPositiveButton("Kyllä", new DialogInterface.OnClickListener()
+                {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        finish();
+                    }
+
+                })
+                .setNegativeButton("Ei", null)
+                .show();
+    }
+    @Override
+    protected void onStart() {
+        super.onStart();
         Button addStop = findViewById(R.id.addStop);
-        final List<Button> nearbyButtons = new ArrayList<>();
+        final TextView addressText = findViewById(R.id.currentNearbyLocations);
+        final TextView latitudeText = findViewById(R.id.currentStopLatitude);
+        final TextView longitudeText = findViewById(R.id.currentStopLongitude);
 
         addStop.setKeepScreenOn(true);
+
         nearbyButtons.add((Button) findViewById(R.id.btnNearbyA));
         nearbyButtons.add((Button) findViewById(R.id.btnNearbyB));
         nearbyButtons.add((Button) findViewById(R.id.btnNearbyC));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyD));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyE));
 
         Button.OnClickListener nearbyList = new Button.OnClickListener() {
             @Override
             public void onClick(View v) {
                 if (v.isEnabled()) {
-                    Button vb = (Button) v;
                     String name = ((Button) v).getText().toString();
                     addLocation(name);
+                    for (int i = 0; i < 5; i++) {
+                        nearbyButtons.get(i).setVisibility(View.GONE);
+                    }
+
+                    currentTrip.add(name);
+
                 }
             }
         };
 
-        nearbyButtons.get(0).setOnClickListener(nearbyList);
-        nearbyButtons.get(1).setOnClickListener(nearbyList);
-        nearbyButtons.get(2).setOnClickListener(nearbyList);
+        for (int i = 0; i<5; i++) {
+            nearbyButtons.get(i).setOnClickListener(nearbyList);
+        }
+
+
 
         if(latitude == null || longitude == null) {
             addStop.setEnabled(false);
             getCurrentLocation();
         }
         addStop.setEnabled(true);
+
         addStop.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("SetTextI18n")
             @Override
@@ -89,50 +139,48 @@ public class TripActivity extends AppCompatActivity {
                             REQUEST_CODE_LOCATION
                     );
                 } else {
-
-                    final TextView addressText = findViewById(R.id.currentNearbyLocations);
-
                     if(latitude == null || longitude == null) {
-                        TextView latitudeText = findViewById(R.id.currentStopLatitude);
-                        TextView longitudeText = findViewById(R.id.currentStopLongitude);
                         latitudeText.setText("Latitude null");
                         longitudeText.setText("Longitude null");
                         return;
+                    }
+
+                    for(int i=0 ; i<5; i++){
+                        nearbyButtons.get(i).setVisibility(View.GONE);
                     }
                     AsyncTask.execute(new Runnable() {
                         @Override
                         public void run() {
                             try {
-                                List<OverpassLocation> nearby = getNearbyLocations();
-                                if (!nearby.isEmpty()) {
-                                    if(nearby.size()<4) {
-                                        StringBuilder temp = new StringBuilder();
-                                        for (int i = 0; i < nearby.size(); i++) {
-                                            temp.append(nearby.get(i).getTags().getName()).append(" ");
-                                            nearbyButtons.get(i).setText(nearby.get(i).getTags().getName());
-                                        }
-                                        addressText.setText(temp);
-                                    } else {
-                                        StringBuilder temp = new StringBuilder();
-                                        for (int i = 0; i < 3; i++) {
-                                            temp.append(nearby.get(i).getTags().getName()).append(" ");
-                                            nearbyButtons.get(i).setText(nearby.get(i).getTags().getName());
-                                        }
-                                        addressText.setText(temp);
-                                    }
-                                } else {
-                                    addressText.setText("Ei paikkoja lähistöllä");
-                                }
-
+                                nearbyLocations = getNearbyLocations();
                             } catch (IOException e) {
                                 e.printStackTrace();
                             }
                         }
                     });
 
+                    StringBuilder temp = new StringBuilder();
+                    int iter = 0;
+                    for (OverpassLocation loc : nearbyLocations) {
+                        temp.append(loc.getTags().getName()).append(" ");
+                        if (iter < 5) {
+                            nearbyButtons.get(iter).setVisibility(View.VISIBLE);
+                            nearbyButtons.get(iter).setText(loc.getTags().getName());
+                        }
+                        iter++;
+                    }
+                    addressText.setText(temp);
+
                 }
             }
         });
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        getCurrentLocation();
     }
 
     @Override
@@ -170,8 +218,6 @@ public class TripActivity extends AppCompatActivity {
                                     locationResult.getLocations().get(latestLocationIndex).getLatitude();
                             longitude =
                                     locationResult.getLocations().get(latestLocationIndex).getLongitude();
-                            latitude = round(latitude,6);
-                            longitude = round(longitude, 6);
                             TextView latitudeText = findViewById(R.id.currentStopLatitude);
                             TextView longitudeText = findViewById(R.id.currentStopLongitude);
                             latitudeText.setText(String.format("%s", latitude));
@@ -186,7 +232,7 @@ public class TripActivity extends AppCompatActivity {
         URL endpoint = new URL("https://overpass-api.de/api/interpreter");
         HttpURLConnection urlConn = (HttpURLConnection) endpoint.openConnection();
         if(latitude == null || longitude == null)return null;
-        String apiQuery = "data=[out:json][timeout:25];node(around:50,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[name];\n" +
+        String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[name];\n" +
                 "out;");
         try {
             urlConn.setDoOutput(true);
@@ -215,23 +261,24 @@ public class TripActivity extends AppCompatActivity {
 
 
     public void addLocation(String name) {
+        Button stopButton = new Button(this);
+        stopButton.setText(name);
 
-        Button testButton = new Button(this);
-        testButton.setText(name);
+        overviewButtons.add(stopButton);
 
         LinearLayout tripOverviewLayout = findViewById(R.id.tripOverviewBar);
-        LinearLayout.LayoutParams defaultTripParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        LinearLayout.LayoutParams tripOverviewParam = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
 
-        tripOverviewLayout.addView(testButton, defaultTripParameters);
+        tripOverviewLayout.addView(stopButton, tripOverviewParam);
 
-        View.OnClickListener click = new View.OnClickListener() {
+        View.OnClickListener remove = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 removeLocation(v);
             }
         };
 
-        testButton.setOnClickListener(click);
+        stopButton.setOnClickListener(remove);
     }
 
     public void removeLocation(View view) {
@@ -242,15 +289,6 @@ public class TripActivity extends AppCompatActivity {
     public void finishTrip(View view) {
         Intent finish = new Intent(this, Main.class);
         startActivity(finish);
-
-    }
-
-    public static double round(double value, int places) {
-        if (places < 0) throw new IllegalArgumentException();
-
-        BigDecimal bd = BigDecimal.valueOf(value);
-        bd = bd.setScale(places, RoundingMode.HALF_UP);
-        return bd.doubleValue();
     }
 
 }
