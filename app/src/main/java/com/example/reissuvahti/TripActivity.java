@@ -41,6 +41,9 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class TripActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_LOCATION = 1;
@@ -84,6 +87,17 @@ public class TripActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor();
+
+        scheduler.scheduleAtFixedRate
+                (new Runnable() {
+                    public void run() {
+                        getCurrentLocation();
+                    }
+                }, 0, 10, TimeUnit.SECONDS);
+
         Button addStop = findViewById(R.id.addStop);
         final TextView latitudeText = findViewById(R.id.currentStopLatitude);
         final TextView longitudeText = findViewById(R.id.currentStopLongitude);
