@@ -10,7 +10,6 @@ import android.os.Bundle;
 import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.Window;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -35,9 +34,9 @@ import com.google.gson.stream.JsonReader;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -48,7 +47,6 @@ public class TripActivity extends AppCompatActivity {
     Double latitude = null;
     Double longitude = null;
     List<String> currentTrip = new ArrayList<>();
-    List<OverpassLocation> nearbyLocations = new ArrayList<>();
     List<Button> nearbyButtons = new ArrayList<>();
     List<Button> overviewButtons = new ArrayList<>();
 
@@ -87,7 +85,6 @@ public class TripActivity extends AppCompatActivity {
     protected void onStart() {
         super.onStart();
         Button addStop = findViewById(R.id.addStop);
-        final TextView addressText = findViewById(R.id.currentNearbyLocations);
         final TextView latitudeText = findViewById(R.id.currentStopLatitude);
         final TextView longitudeText = findViewById(R.id.currentStopLongitude);
 
@@ -121,10 +118,7 @@ public class TripActivity extends AppCompatActivity {
 
 
 
-        if(latitude == null || longitude == null) {
-            addStop.setEnabled(false);
-            getCurrentLocation();
-        }
+        getCurrentLocation();
         addStop.setEnabled(true);
 
         addStop.setOnClickListener(new View.OnClickListener() {
@@ -148,29 +142,12 @@ public class TripActivity extends AppCompatActivity {
                     for(int i=0 ; i<5; i++){
                         nearbyButtons.get(i).setVisibility(View.GONE);
                     }
-                    AsyncTask.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                nearbyLocations = getNearbyLocations();
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    });
-
-                    StringBuilder temp = new StringBuilder();
-                    int iter = 0;
-                    for (OverpassLocation loc : nearbyLocations) {
-                        temp.append(loc.getTags().getName()).append(" ");
-                        if (iter < 5) {
-                            nearbyButtons.get(iter).setVisibility(View.VISIBLE);
-                            nearbyButtons.get(iter).setText(loc.getTags().getName());
-                        }
-                        iter++;
-                    }
-                    addressText.setText(temp);
-
+                    getCurrentLocation();
+                    List<Double> taskParams = new ArrayList<>();
+                    taskParams.add(latitude);
+                    taskParams.add(longitude);
+                    NearbyTask fetchLocations = new NearbyTask();
+                    fetchLocations.execute(taskParams);
                 }
             }
         });
@@ -227,39 +204,6 @@ public class TripActivity extends AppCompatActivity {
                 }, Looper.getMainLooper());
     }
 
-    public List<OverpassLocation> getNearbyLocations() throws IOException {
-        List<OverpassLocation> nearbyLocations;
-        URL endpoint = new URL("https://overpass-api.de/api/interpreter");
-        HttpURLConnection urlConn = (HttpURLConnection) endpoint.openConnection();
-        if(latitude == null || longitude == null)return null;
-        String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[name];\n" +
-                "out;");
-        try {
-            urlConn.setDoOutput(true);
-            urlConn.setRequestMethod("POST");
-            urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-
-            BufferedOutputStream writer = new BufferedOutputStream(urlConn.getOutputStream());
-            writer.write(apiQuery.getBytes());
-            writer.flush();
-            writer.close();
-
-            InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
-            JsonReader reader = new JsonReader(in);
-            OverpassResponse overpassResponse = new Gson().fromJson(reader, OverpassResponse.class);
-            nearbyLocations = Arrays.asList(overpassResponse.getElements());
-        } finally {
-            urlConn.disconnect();
-
-        }
-
-        return nearbyLocations;
-
-    }
-
-
-
-
     public void addLocation(String name) {
         Button stopButton = new Button(this);
         stopButton.setText(name);
@@ -290,5 +234,89 @@ public class TripActivity extends AppCompatActivity {
         Intent finish = new Intent(this, Main.class);
         startActivity(finish);
     }
+
+    @SuppressLint("StaticFieldLeak")
+    public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocation>> {
+        final TextView addressText = findViewById(R.id.currentNearbyLocations);
+        ProgressBar progressBar = findViewById(R.id.progressBar);
+
+        @Override
+        protected void onPreExecute() {
+            progressBar.setVisibility(View.VISIBLE);
+            progressBar.animate();
+        }
+
+        @SafeVarargs
+        @Override
+        protected final List<OverpassLocation> doInBackground(List<Double>... coordinates) {
+            List<Double> passedList = coordinates[0];
+            Double latitude = passedList.get(0);
+            Double longitude = passedList.get(1);
+            List<OverpassLocation> nearbyLocations = new ArrayList<>();
+            URL endpoint = null;
+            try {
+                endpoint = new URL("https://overpass-api.de/api/interpreter");
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+            HttpURLConnection urlConn = null;
+            try {
+                assert endpoint != null;
+                urlConn = (HttpURLConnection) endpoint.openConnection();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if(latitude == null || longitude == null)return null;
+            String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[name];" +
+                    "out;");
+            try {
+                assert urlConn != null;
+                urlConn.setDoOutput(true);
+                urlConn.setRequestMethod("POST");
+                urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
+                BufferedOutputStream writer = new BufferedOutputStream(urlConn.getOutputStream());
+                writer.write(apiQuery.getBytes());
+                writer.flush();
+                writer.close();
+
+                InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
+                JsonReader reader = new JsonReader(in);
+                OverpassResponse overpassResponse = new Gson().fromJson(reader, OverpassResponse.class);
+                nearbyLocations = Arrays.asList(overpassResponse.getElements());
+            } catch (ProtocolException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                assert urlConn != null;
+                urlConn.disconnect();
+            }
+            return nearbyLocations;
+        }
+
+        @SuppressLint("SetTextI18n")
+        @Override
+        protected void onPostExecute(List<OverpassLocation> locations) {
+            StringBuilder temp = new StringBuilder();
+            int iter = 0;
+            if (locations.isEmpty()) {
+            addressText.setText("Ei paikkoja lähistöllä.");
+            progressBar.setVisibility(View.GONE);
+            return;
+            }
+            for (OverpassLocation loc : locations) {
+                temp.append(loc.getTags().getName()).append(" ");
+                if (iter < 5) {
+                    nearbyButtons.get(iter).setVisibility(View.VISIBLE);
+                    nearbyButtons.get(iter).setText(loc.getTags().getName());
+                }
+                iter++;
+            }
+            addressText.setText(temp);
+            progressBar.setVisibility(View.GONE);
+        }
+    }
+
 
 }
