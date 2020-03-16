@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat;
 
 import com.example.reissuvahti.overpass.OverpassLocation;
 import com.example.reissuvahti.overpass.OverpassResponse;
+import com.example.reissuvahti.overpass.OverpassTag;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
@@ -32,8 +33,10 @@ import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 
 import java.io.BufferedOutputStream;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
@@ -52,6 +55,7 @@ public class TripActivity extends AppCompatActivity {
     List<String> currentTrip = new ArrayList<>();
     List<Button> nearbyButtons = new ArrayList<>();
     List<Button> overviewButtons = new ArrayList<>();
+    List<OverpassLocation> tripStops = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -87,6 +91,14 @@ public class TripActivity extends AppCompatActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        final Button finish = findViewById(R.id.finishTrip);
+        finish.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                FinishTripTask finishTrip = new FinishTripTask();
+                finishTrip.execute(tripStops);
+            }
+        });
 
         ScheduledExecutorService scheduler =
                 Executors.newSingleThreadScheduledExecutor();
@@ -115,7 +127,16 @@ public class TripActivity extends AppCompatActivity {
             public void onClick(View v) {
                 if (v.isEnabled()) {
                     String name = ((Button) v).getText().toString();
+                    OverpassLocation loc = new OverpassLocation();
+                    OverpassTag tag = new OverpassTag();
+                    tag.setName(name);
+                    loc.setTags(tag);
+                    loc.setLat(latitude);
+                    loc.setLon(longitude);
+
                     addLocation(name);
+                    tripStops.add(loc);
+
                     for (int i = 0; i < 5; i++) {
                         nearbyButtons.get(i).setVisibility(View.GONE);
                     }
@@ -244,7 +265,7 @@ public class TripActivity extends AppCompatActivity {
         tripOverviewLayout.removeView(view);
     }
 
-    public void finishTrip(View view) {
+    public void finishTrip() {
         Intent finish = new Intent(this, Main.class);
         startActivity(finish);
     }
@@ -329,6 +350,87 @@ public class TripActivity extends AppCompatActivity {
             }
             addressText.setText(temp);
             progressBar.setVisibility(View.GONE);
+        }
+    }
+
+    @SuppressLint("StaticFieldLeak")
+    public class FinishTripTask extends AsyncTask<List<OverpassLocation>, Void, Void> {
+        ProgressBar progressBar = findViewById(R.id.progressBar);
+
+        @Override
+        protected void onPreExecute() {
+            progressBar.setVisibility(View.VISIBLE);
+            progressBar.animate();
+        }
+
+        @SafeVarargs
+        @Override
+        protected final Void doInBackground(List<OverpassLocation>... locations) {
+            List<OverpassLocation> passedList = locations[0];
+            URL endpoint = null;
+            try {
+                endpoint = new URL("http://192.168.1.10:8080/api/locations");
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+            for(int i=0; i<passedList.size(); i++) {
+
+                HttpURLConnection urlConn = null;
+                try {
+                    assert endpoint != null;
+                    urlConn = (HttpURLConnection) endpoint.openConnection();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+
+                try {
+                    assert urlConn != null;
+                    urlConn.setDoOutput(true);
+                    urlConn.setRequestMethod("POST");
+                    urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                    String apiPost = "name=".concat(passedList.get(i).getTags().getName()).concat("&latitude=").concat(
+                            passedList.get(i).getLat().toString()).concat("&longitude=").concat(
+                            passedList.get(i).getLon().toString());
+                    BufferedOutputStream outputStream = new BufferedOutputStream(urlConn.getOutputStream());
+                    OutputStreamWriter writer = new OutputStreamWriter(outputStream);
+                    writer.write(apiPost);
+                    writer.flush();
+                    writer.close();
+
+                    int responseCode = (urlConn.getResponseCode());
+
+                    if (responseCode==200) {
+                        BufferedReader in = new BufferedReader(new InputStreamReader(
+                                urlConn.getInputStream()));
+                        String inputLine;
+                        StringBuffer response = new StringBuffer();
+
+                        while ((inputLine = in.readLine()) != null) {
+                            response.append(inputLine);
+                        }
+                        in.close();
+                        System.out.println(response);
+                    }
+
+
+
+                } catch (ProtocolException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    assert urlConn != null;
+                    urlConn.disconnect();
+                }
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+            progressBar.setVisibility(View.GONE);
+            finishTrip();
         }
     }
 
