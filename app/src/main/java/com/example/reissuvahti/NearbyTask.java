@@ -23,6 +23,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import static com.example.reissuvahti.Common.LATITUDE;
+import static com.example.reissuvahti.Common.LONGITUDE;
 import static com.example.reissuvahti.Constants.OVERPASS_ENDPOINT_URL;
 
 public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocation>> {
@@ -42,28 +44,20 @@ public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocat
     @SafeVarargs
     @Override
     protected final List<OverpassLocation> doInBackground(List<Double>... coordinates) {
-        List<Double> passedList = coordinates[0];
-        Double latitude = passedList.get(0);
-        Double longitude = passedList.get(1);
         List<OverpassLocation> nearbyLocations = new ArrayList<>();
-        URL endpoint = null;
-        try {
-            endpoint = new URL(OVERPASS_ENDPOINT_URL);
-        } catch (MalformedURLException e) {
-            e.printStackTrace();
-        }
         HttpURLConnection urlConn = null;
+
         try {
-            assert endpoint != null;
+            //List<Double> passedList = coordinates[0];
+            //Double latitude = passedList.get(0);
+            //Double longitude = passedList.get(1);
+            URL endpoint = new URL(OVERPASS_ENDPOINT_URL);
             urlConn = (HttpURLConnection) endpoint.openConnection();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        if(latitude == null || longitude == null)return null;
-        String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[name];" +
-                "out;");
-        try {
-            assert urlConn != null;
+
+            if (LATITUDE == null || LONGITUDE == null) return null;
+            String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(LATITUDE.toString()).concat(",").concat(LONGITUDE.toString()).concat(")[name];" +
+                    "out;");
+
             urlConn.setDoOutput(true);
             urlConn.setRequestMethod("POST");
 
