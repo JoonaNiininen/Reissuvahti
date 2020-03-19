@@ -3,7 +3,6 @@ package com.example.reissuvahti;
 import android.os.AsyncTask;
 import android.view.View;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 
 import com.example.reissuvahti.overpass.OverpassLocation;
 import com.example.reissuvahti.overpass.OverpassResponse;
@@ -16,7 +15,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -48,9 +46,6 @@ public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocat
         HttpURLConnection urlConn = null;
 
         try {
-            //List<Double> passedList = coordinates[0];
-            //Double latitude = passedList.get(0);
-            //Double longitude = passedList.get(1);
             URL endpoint = new URL(OVERPASS_ENDPOINT_URL);
             urlConn = (HttpURLConnection) endpoint.openConnection();
 
@@ -85,22 +80,17 @@ public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocat
     @Override
     protected void onPostExecute(List<OverpassLocation> locations) {
         ProgressBar progressBar = _tripActivity.get().findViewById(R.id.progressBar);
-        TextView addressText = _tripActivity.get().findViewById(R.id.currentNearbyLocations);
-        StringBuilder temp = new StringBuilder();
-        int iter = 0;
+
         if (locations.isEmpty()) {
             progressBar.setVisibility(View.GONE);
             return;
         }
-        for (OverpassLocation loc : locations) {
-            temp.append(loc.getTags().getName()).append(" ");
-            if (iter < 5) {
-                _tripActivity.get().getNearbyButtons().get(iter).setVisibility(View.VISIBLE);
-                _tripActivity.get().getNearbyButtons().get(iter).setText(loc.getTags().getName());
-            }
-            iter++;
+
+        for(int i=0; i< 5; i++) {
+            _tripActivity.get().getNearbyButtons().get(i).setVisibility(View.VISIBLE);
+            _tripActivity.get().getNearbyButtons().get(i).setText(locations.get(i).getTags().getName());
         }
-        addressText.setText(temp);
+
         progressBar.setVisibility(View.GONE);
 
     }
