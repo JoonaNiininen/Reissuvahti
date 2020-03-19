@@ -1,4 +1,4 @@
-package com.example.reissuvahti;
+package com.example.reissuvahti.view;
 
 import android.Manifest;
 import android.content.DialogInterface;
@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.reissuvahti.R;
 import com.example.reissuvahti.overpass.OverpassLocation;
 import com.example.reissuvahti.overpass.OverpassResponse;
 import com.example.reissuvahti.overpass.OverpassTag;
@@ -51,24 +52,27 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static com.example.reissuvahti.Common.LATITUDE;
+import static com.example.reissuvahti.Common.LONGITUDE;
+import static com.example.reissuvahti.Common.TRIP_STOP_LIST;
+import static com.example.reissuvahti.Constants.FIRST_LOCATION;
+import static com.example.reissuvahti.Constants.GPS_INITIAL_DELAY;
+import static com.example.reissuvahti.Constants.GPS_UPDATE_INTERVAL;
+import static com.example.reissuvahti.Constants.LOCALHOST_URL;
+import static com.example.reissuvahti.Constants.LOCATION_FASTEST_INTERVAL;
+import static com.example.reissuvahti.Constants.LOCATION_UPDATE_INTERVAL;
+import static com.example.reissuvahti.Constants.OVERPASS_ENDPOINT_URL;
+import static com.example.reissuvahti.Constants.REQUEST_CODE_LOCATION;
+import static com.example.reissuvahti.Constants.HTTP_OK;
+
+
 public class TripActivity extends AppCompatActivity {
 
-    private static final int GPS_INITIAL_DELAY = 0;
-    private static final int GPS_UPDATE_INTERVAL = 10;
-    private static final int REQUEST_CODE_LOCATION = 1;
-    private static final long LOCATION_FASTEST_INTERVAL = 3000;
-    private static final long LOCATION_UPDATE_INTERVAL = 5000;
-    private static final String LOCALHOST_URL = "http://192.168.1.10:8080/api/trips";
-    private static Double latitude = null;
-    private static Double longitude = null;
-    private static final String LATITUDE_NULL = null;
-    private static final String LONGITUDE_NULL = null;
-    private static final String ENDPOINT_URL = "https://overpass-api.de/api/interpreter";
-    private static List<Button> nearbyButtons = new ArrayList<>();
-    private static List<Button> overviewButtons = new ArrayList<>();
-    private static List<OverpassLocation> tripStopList = new ArrayList<>();
-    private static final int HTTP_OK = 200;
-    private static final int FIRST_LOCATION = 0;
+
+
+    private List<Button> nearbyButtons = new ArrayList<>();
+    private List<Button> overviewButtons = new ArrayList<>();
+
 
 
     @Override
@@ -175,14 +179,14 @@ public class TripActivity extends AppCompatActivity {
                         if (locationResult != null && locationResult.getLocations().size() > 0) {
                             int latestLocationIndex = locationResult.getLocations().size() - 1;
 
-                            latitude =
+                            LATITUDE =
                                     locationResult.getLocations().get(latestLocationIndex).getLatitude();
-                            longitude =
+                            LONGITUDE =
                                     locationResult.getLocations().get(latestLocationIndex).getLongitude();
                             TextView latitudeText = findViewById(R.id.currentStopLatitude);
                             TextView longitudeText = findViewById(R.id.currentStopLongitude);
-                            latitudeText.setText(String.format("%s", latitude));
-                            longitudeText.setText(String.format("%s", longitude));
+                            latitudeText.setText(String.format("%s", LATITUDE));
+                            longitudeText.setText(String.format("%s", LONGITUDE));
                         }
                     }
                 }, Looper.getMainLooper());
@@ -219,7 +223,7 @@ public class TripActivity extends AppCompatActivity {
     }
 
     public void finishTrip() {
-        Intent finish = new Intent(this, Main.class);
+        Intent finish = new Intent(this, MainActivity.class);
         startActivity(finish);
     }
 
@@ -236,9 +240,9 @@ public class TripActivity extends AppCompatActivity {
                         REQUEST_CODE_LOCATION
                 );
             } else {
-                if(latitude == null || longitude == null) {
-                    latitudeText.setText(LATITUDE_NULL);
-                    longitudeText.setText(LONGITUDE_NULL);
+                if(LATITUDE == null || LONGITUDE == null) {
+                    latitudeText.setText(null);
+                    longitudeText.setText(null);
                     return;
                 }
 
@@ -247,8 +251,8 @@ public class TripActivity extends AppCompatActivity {
                 }
                 getCurrentLocation();
                 List<Double> taskParams = new ArrayList<>();
-                taskParams.add(latitude);
-                taskParams.add(longitude);
+                taskParams.add(LATITUDE);
+                taskParams.add(LONGITUDE);
 
                 NearbyTask fetchLocationsTask = new NearbyTask();
                 fetchLocationsTask.execute(taskParams);
@@ -265,12 +269,12 @@ public class TripActivity extends AppCompatActivity {
                 OverpassTag tag = new OverpassTag();
                 tag.setName(name);
                 loc.setTags(tag);
-                loc.setLat(latitude);
-                loc.setLon(longitude);
+                loc.setLat(LATITUDE);
+                loc.setLon(LONGITUDE);
 
 
                 addLocation(loc);
-                tripStopList.add(loc);
+                TRIP_STOP_LIST.add(loc);
 
                 for (int i = 0; i < 5; i++) {
                     nearbyButtons.get(i).setVisibility(View.GONE);
@@ -283,68 +287,67 @@ public class TripActivity extends AppCompatActivity {
         @Override
         public void onClick(View view) {
             FinishTripTask finishTask = new FinishTripTask();
-            finishTask.execute(tripStopList);
+            finishTask.execute(TRIP_STOP_LIST);
     }
     };
 
-
     protected class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocation>> {
 
-        @Override
-        protected void onPreExecute() {
-            ProgressBar progressBar = findViewById(R.id.progressBar);
-            progressBar.setVisibility(View.VISIBLE);
-            progressBar.animate();
-        }
-
-        @SafeVarargs
-        @Override
-        protected final List<OverpassLocation> doInBackground(List<Double>... coordinates) {
-            List<Double> passedList = coordinates[0];
-            Double latitude = passedList.get(0);
-            Double longitude = passedList.get(1);
-            List<OverpassLocation> nearbyLocations = new ArrayList<>();
-            URL endpoint = null;
-            try {
-                endpoint = new URL(ENDPOINT_URL);
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
+            @Override
+            protected void onPreExecute() {
+                ProgressBar progressBar = findViewById(R.id.progressBar);
+                progressBar.setVisibility(View.VISIBLE);
+                progressBar.animate();
             }
-            HttpURLConnection urlConn = null;
-            try {
-                assert endpoint != null;
-                urlConn = (HttpURLConnection) endpoint.openConnection();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            if(latitude == null || longitude == null)return null;
-            String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[name];" +
-                    "out;");
-            try {
-                assert urlConn != null;
-                urlConn.setDoOutput(true);
-                urlConn.setRequestMethod("POST");
-                urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
-                BufferedOutputStream writer = new BufferedOutputStream(urlConn.getOutputStream());
-                writer.write(apiQuery.getBytes());
-                writer.flush();
-                writer.close();
+            @SafeVarargs
+            @Override
+            protected final List<OverpassLocation> doInBackground(List<Double>... coordinates) {
+                List<Double> passedList = coordinates[0];
+                Double latitude = passedList.get(0);
+                Double longitude = passedList.get(1);
+                List<OverpassLocation> nearbyLocations = new ArrayList<>();
+                URL endpoint = null;
+                try {
+                    endpoint = new URL(OVERPASS_ENDPOINT_URL);
+                } catch (MalformedURLException e) {
+                    e.printStackTrace();
+                }
+                HttpURLConnection urlConn = null;
+                try {
+                    assert endpoint != null;
+                    urlConn = (HttpURLConnection) endpoint.openConnection();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                if(latitude == null || longitude == null)return null;
+                String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[name];" +
+                        "out;");
+                try {
+                    assert urlConn != null;
+                    urlConn.setDoOutput(true);
+                    urlConn.setRequestMethod("POST");
+                    urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
-                InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
-                JsonReader reader = new JsonReader(in);
-                OverpassResponse overpassResponse = new Gson().fromJson(reader, OverpassResponse.class);
-                nearbyLocations = Arrays.asList(overpassResponse.getElements());
-            } catch (ProtocolException e) {
-                e.printStackTrace();
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                assert urlConn != null;
-                urlConn.disconnect();
+                    BufferedOutputStream writer = new BufferedOutputStream(urlConn.getOutputStream());
+                    writer.write(apiQuery.getBytes());
+                    writer.flush();
+                    writer.close();
+
+                    InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
+                    JsonReader reader = new JsonReader(in);
+                    OverpassResponse overpassResponse = new Gson().fromJson(reader, OverpassResponse.class);
+                    nearbyLocations = Arrays.asList(overpassResponse.getElements());
+                } catch (ProtocolException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                } finally {
+                    assert urlConn != null;
+                    urlConn.disconnect();
+                }
+                return nearbyLocations;
             }
-            return nearbyLocations;
-        }
 
 
         @Override
@@ -387,12 +390,10 @@ public class TripActivity extends AppCompatActivity {
             URL endpoint = null;
             String result = null;
             Calendar calendar = Calendar.getInstance();
-            String tripName = new StringBuilder
-                    (Integer.toString(calendar.get(Calendar.HOUR_OF_DAY))
+            String tripName = Integer.toString(calendar.get(Calendar.HOUR_OF_DAY))
                     .concat(Integer.toString(calendar.get(Calendar.MINUTE)))
                     .concat(Integer.toString(calendar.get(Calendar.DATE)))
-                    .concat(Integer.toString(calendar.get(Calendar.YEAR)))
-                    ).toString();
+                    .concat(Integer.toString(calendar.get(Calendar.YEAR)));
 
             try {
                 endpoint = new URL(LOCALHOST_URL);
@@ -466,7 +467,7 @@ public class TripActivity extends AppCompatActivity {
         protected void onPostExecute(String result) {
             ProgressBar progressBar = findViewById(R.id.progressBar);
             super.onPostExecute(result);
-            tripStopList.clear();
+            TRIP_STOP_LIST.clear();
             progressBar.setVisibility(View.GONE);
             finishTrip();
         }

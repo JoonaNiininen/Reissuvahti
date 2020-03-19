@@ -5,7 +5,7 @@
     android:id="@+id/TripBaseLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".TripActivity">
+    tools:context=".view.TripActivity">
 
     <ProgressBar
         android:id="@+id/progressBar"
