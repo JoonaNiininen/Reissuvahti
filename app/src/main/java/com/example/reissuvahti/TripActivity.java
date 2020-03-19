@@ -1,7 +1,6 @@
 package com.example.reissuvahti;
 
 import android.Manifest;
-import android.annotation.SuppressLint;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -32,44 +31,94 @@ import com.google.android.gms.location.LocationServices;
 import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 public class TripActivity extends AppCompatActivity {
+
+    private static final int GPS_INITIAL_DELAY = 0;
+    private static final int GPS_UPDATE_INTERVAL = 10;
     private static final int REQUEST_CODE_LOCATION = 1;
-    Double latitude = null;
-    Double longitude = null;
-    List<String> currentTrip = new ArrayList<>();
-    List<Button> nearbyButtons = new ArrayList<>();
-    List<Button> overviewButtons = new ArrayList<>();
-    List<OverpassLocation> tripStops = new ArrayList<>();
+    private static final long LOCATION_FASTEST_INTERVAL = 3000;
+    private static final long LOCATION_UPDATE_INTERVAL = 5000;
+    private static final String LOCALHOST_URL = "http://192.168.1.10:8080/api/trips";
+    private static Double latitude = null;
+    private static Double longitude = null;
+    private static final String LATITUDE_NULL = null;
+    private static final String LONGITUDE_NULL = null;
+    private static final String ENDPOINT_URL = "https://overpass-api.de/api/interpreter";
+    private static List<Button> nearbyButtons = new ArrayList<>();
+    private static List<Button> overviewButtons = new ArrayList<>();
+    private static List<OverpassLocation> tripStopList = new ArrayList<>();
+    private static final int HTTP_OK = 200;
+    private static final int FIRST_LOCATION = 0;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         try
         {
-            this.getSupportActionBar().hide();
+            if (this.getSupportActionBar()!=null){
+                this.getSupportActionBar().hide();
+            }
         }
         catch (NullPointerException e){
             e.printStackTrace();
         }
         setContentView(R.layout.activity_trip);
-        getCurrentLocation();
+
     }
+
+
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        final Button finish = findViewById(R.id.finishTrip);
+        final Button addStop = findViewById(R.id.addStop);
+        addStop.setKeepScreenOn(true);
+        finish.setOnClickListener(finishTripListener);
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyA));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyB));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyC));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyD));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyE));
+        for (int i = 0; i<5; i++) {
+            nearbyButtons.get(i).setOnClickListener(nearbyListListener);
+        }
+        addStop.setEnabled(true);
+        addStop.setOnClickListener(addStopListener);
+
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor();
+
+        scheduler.scheduleAtFixedRate
+                (new Runnable() {
+                    public void run() {
+                        getCurrentLocation();
+                    }
+                }, GPS_INITIAL_DELAY, GPS_UPDATE_INTERVAL, TimeUnit.SECONDS);
+    }
+
+
 
     @Override
     public void onBackPressed() {
@@ -87,106 +136,6 @@ public class TripActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("Ei", null)
                 .show();
-    }
-    @Override
-    protected void onStart() {
-        super.onStart();
-        final Button finish = findViewById(R.id.finishTrip);
-        finish.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                FinishTripTask finishTrip = new FinishTripTask();
-                finishTrip.execute(tripStops);
-            }
-        });
-
-        ScheduledExecutorService scheduler =
-                Executors.newSingleThreadScheduledExecutor();
-
-        scheduler.scheduleAtFixedRate
-                (new Runnable() {
-                    public void run() {
-                        getCurrentLocation();
-                    }
-                }, 0, 10, TimeUnit.SECONDS);
-
-        Button addStop = findViewById(R.id.addStop);
-        final TextView latitudeText = findViewById(R.id.currentStopLatitude);
-        final TextView longitudeText = findViewById(R.id.currentStopLongitude);
-
-        addStop.setKeepScreenOn(true);
-
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyA));
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyB));
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyC));
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyD));
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyE));
-
-        Button.OnClickListener nearbyList = new Button.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (v.isEnabled()) {
-                    String name = ((Button) v).getText().toString();
-                    OverpassLocation loc = new OverpassLocation();
-                    OverpassTag tag = new OverpassTag();
-                    tag.setName(name);
-                    loc.setTags(tag);
-                    loc.setLat(latitude);
-                    loc.setLon(longitude);
-
-                    addLocation(name);
-                    tripStops.add(loc);
-
-                    for (int i = 0; i < 5; i++) {
-                        nearbyButtons.get(i).setVisibility(View.GONE);
-                    }
-
-                    currentTrip.add(name);
-
-                }
-            }
-        };
-
-        for (int i = 0; i<5; i++) {
-            nearbyButtons.get(i).setOnClickListener(nearbyList);
-        }
-
-
-
-        getCurrentLocation();
-        addStop.setEnabled(true);
-
-        addStop.setOnClickListener(new View.OnClickListener() {
-            @SuppressLint("SetTextI18n")
-            @Override
-            public void onClick(View v) {
-                if (ContextCompat.checkSelfPermission(
-                        getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION
-                ) != PackageManager.PERMISSION_GRANTED) {
-                    ActivityCompat.requestPermissions(
-                            TripActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
-                            REQUEST_CODE_LOCATION
-                    );
-                } else {
-                    if(latitude == null || longitude == null) {
-                        latitudeText.setText("Latitude null");
-                        longitudeText.setText("Longitude null");
-                        return;
-                    }
-
-                    for(int i=0 ; i<5; i++){
-                        nearbyButtons.get(i).setVisibility(View.GONE);
-                    }
-                    getCurrentLocation();
-                    List<Double> taskParams = new ArrayList<>();
-                    taskParams.add(latitude);
-                    taskParams.add(longitude);
-                    NearbyTask fetchLocations = new NearbyTask();
-                    fetchLocations.execute(taskParams);
-                }
-            }
-        });
-
     }
 
     @Override
@@ -211,8 +160,8 @@ public class TripActivity extends AppCompatActivity {
 
     private void getCurrentLocation() {
         final LocationRequest locationRequest = new LocationRequest();
-        locationRequest.setInterval(5000);
-        locationRequest.setFastestInterval(3000);
+        locationRequest.setInterval(LOCATION_UPDATE_INTERVAL);
+        locationRequest.setFastestInterval(LOCATION_FASTEST_INTERVAL);
         locationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
 
         LocationServices.getFusedLocationProviderClient(TripActivity.this)
@@ -239,10 +188,9 @@ public class TripActivity extends AppCompatActivity {
                 }, Looper.getMainLooper());
     }
 
-    public void addLocation(String name) {
+    public void addLocation(OverpassLocation loc) {
         Button stopButton = new Button(this);
-        stopButton.setText(name);
-
+        stopButton.setText(loc.getTags().getName());
         overviewButtons.add(stopButton);
 
         LinearLayout tripOverviewLayout = findViewById(R.id.tripOverviewBar);
@@ -262,6 +210,11 @@ public class TripActivity extends AppCompatActivity {
 
     public void removeLocation(View view) {
         LinearLayout tripOverviewLayout = findViewById(R.id.tripOverviewBar);
+        Button findButton = (Button) view;
+        for (Iterator<Button> iterator = overviewButtons.iterator(); iterator.hasNext(); ) {
+            if (findButton.getText().equals((iterator.next().getText())))
+                iterator.remove();
+        }
         tripOverviewLayout.removeView(view);
     }
 
@@ -270,13 +223,76 @@ public class TripActivity extends AppCompatActivity {
         startActivity(finish);
     }
 
-    @SuppressLint("StaticFieldLeak")
-    public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocation>> {
-        final TextView addressText = findViewById(R.id.currentNearbyLocations);
-        ProgressBar progressBar = findViewById(R.id.progressBar);
+    View.OnClickListener addStopListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            final TextView latitudeText = findViewById(R.id.currentStopLatitude);
+            final TextView longitudeText = findViewById(R.id.currentStopLongitude);
+            if (ContextCompat.checkSelfPermission(
+                    getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                        TripActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        REQUEST_CODE_LOCATION
+                );
+            } else {
+                if(latitude == null || longitude == null) {
+                    latitudeText.setText(LATITUDE_NULL);
+                    longitudeText.setText(LONGITUDE_NULL);
+                    return;
+                }
+
+                for(int i=0 ; i<5; i++){
+                    nearbyButtons.get(i).setVisibility(View.GONE);
+                }
+                getCurrentLocation();
+                List<Double> taskParams = new ArrayList<>();
+                taskParams.add(latitude);
+                taskParams.add(longitude);
+
+                NearbyTask fetchLocationsTask = new NearbyTask();
+                fetchLocationsTask.execute(taskParams);
+            }
+        }
+    };
+
+    View.OnClickListener nearbyListListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            if (view.isEnabled()) {
+                String name = ((Button) view).getText().toString();
+                OverpassLocation loc = new OverpassLocation();
+                OverpassTag tag = new OverpassTag();
+                tag.setName(name);
+                loc.setTags(tag);
+                loc.setLat(latitude);
+                loc.setLon(longitude);
+
+
+                addLocation(loc);
+                tripStopList.add(loc);
+
+                for (int i = 0; i < 5; i++) {
+                    nearbyButtons.get(i).setVisibility(View.GONE);
+                }
+            }
+        }
+    };
+
+    View.OnClickListener finishTripListener = new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            FinishTripTask finishTask = new FinishTripTask();
+            finishTask.execute(tripStopList);
+    }
+    };
+
+
+    protected class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocation>> {
 
         @Override
         protected void onPreExecute() {
+            ProgressBar progressBar = findViewById(R.id.progressBar);
             progressBar.setVisibility(View.VISIBLE);
             progressBar.animate();
         }
@@ -290,7 +306,7 @@ public class TripActivity extends AppCompatActivity {
             List<OverpassLocation> nearbyLocations = new ArrayList<>();
             URL endpoint = null;
             try {
-                endpoint = new URL("https://overpass-api.de/api/interpreter");
+                endpoint = new URL(ENDPOINT_URL);
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             }
@@ -330,13 +346,14 @@ public class TripActivity extends AppCompatActivity {
             return nearbyLocations;
         }
 
-        @SuppressLint("SetTextI18n")
+
         @Override
         protected void onPostExecute(List<OverpassLocation> locations) {
+            ProgressBar progressBar = findViewById(R.id.progressBar);
+            TextView addressText = findViewById(R.id.currentNearbyLocations);
             StringBuilder temp = new StringBuilder();
             int iter = 0;
             if (locations.isEmpty()) {
-            addressText.setText("Ei paikkoja lähistöllä.");
             progressBar.setVisibility(View.GONE);
             return;
             }
@@ -350,26 +367,35 @@ public class TripActivity extends AppCompatActivity {
             }
             addressText.setText(temp);
             progressBar.setVisibility(View.GONE);
+
         }
     }
 
-    @SuppressLint("StaticFieldLeak")
-    public class FinishTripTask extends AsyncTask<List<OverpassLocation>, Void, Void> {
-        ProgressBar progressBar = findViewById(R.id.progressBar);
+    protected class FinishTripTask extends AsyncTask<List<OverpassLocation>, Void, String> {
 
         @Override
         protected void onPreExecute() {
+            ProgressBar progressBar = findViewById(R.id.progressBar);
             progressBar.setVisibility(View.VISIBLE);
             progressBar.animate();
         }
 
         @SafeVarargs
         @Override
-        protected final Void doInBackground(List<OverpassLocation>... locations) {
-            List<OverpassLocation> passedList = locations[0];
+        protected final String doInBackground(List<OverpassLocation>... locations) {
+            List<OverpassLocation> passedList = locations[FIRST_LOCATION];
             URL endpoint = null;
+            String result = null;
+            Calendar calendar = Calendar.getInstance();
+            String tripName = new StringBuilder
+                    (Integer.toString(calendar.get(Calendar.HOUR_OF_DAY))
+                    .concat(Integer.toString(calendar.get(Calendar.MINUTE)))
+                    .concat(Integer.toString(calendar.get(Calendar.DATE)))
+                    .concat(Integer.toString(calendar.get(Calendar.YEAR)))
+                    ).toString();
+
             try {
-                endpoint = new URL("http://192.168.1.10:8080/api/locations");
+                endpoint = new URL(LOCALHOST_URL);
             } catch (MalformedURLException e) {
                 e.printStackTrace();
             }
@@ -387,19 +413,25 @@ public class TripActivity extends AppCompatActivity {
                     assert urlConn != null;
                     urlConn.setDoOutput(true);
                     urlConn.setRequestMethod("POST");
-                    urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-                    String apiPost = "name=".concat(passedList.get(i).getTags().getName()).concat("&latitude=").concat(
-                            passedList.get(i).getLat().toString()).concat("&longitude=").concat(
-                            passedList.get(i).getLon().toString());
+                    urlConn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
+                    urlConn.setRequestProperty("Accept","application/json");
+
+                    JSONObject locationObject = new JSONObject();
+                    locationObject.put("tripName", tripName);
+                    locationObject.put("name", passedList.get(i).getTags().getName());
+                    locationObject.put("latitude", passedList.get(i).getLat());
+                    locationObject.put("longitude", passedList.get(i).getLon());
+
                     BufferedOutputStream outputStream = new BufferedOutputStream(urlConn.getOutputStream());
-                    OutputStreamWriter writer = new OutputStreamWriter(outputStream);
-                    writer.write(apiPost);
-                    writer.flush();
-                    writer.close();
+                    outputStream.write(locationObject.toString().getBytes());
+                    outputStream.flush();
+                    outputStream.close();
+
 
                     int responseCode = (urlConn.getResponseCode());
 
-                    if (responseCode==200) {
+
+                    if (responseCode==HTTP_OK) {
                         BufferedReader in = new BufferedReader(new InputStreamReader(
                                 urlConn.getInputStream()));
                         String inputLine;
@@ -409,8 +441,10 @@ public class TripActivity extends AppCompatActivity {
                             response.append(inputLine);
                         }
                         in.close();
+
+                        result = "Ladattu palvelimelle";
                         System.out.println(response);
-                    }
+                    } else result = "Epäonnistui";
 
 
 
@@ -418,21 +452,24 @@ public class TripActivity extends AppCompatActivity {
                     e.printStackTrace();
                 } catch (IOException e) {
                     e.printStackTrace();
+                } catch (JSONException e) {
+                    e.printStackTrace();
                 } finally {
                     assert urlConn != null;
                     urlConn.disconnect();
                 }
             }
-            return null;
+            return result;
         }
 
         @Override
-        protected void onPostExecute(Void aVoid) {
-            super.onPostExecute(aVoid);
+        protected void onPostExecute(String result) {
+            ProgressBar progressBar = findViewById(R.id.progressBar);
+            super.onPostExecute(result);
+            tripStopList.clear();
             progressBar.setVisibility(View.GONE);
             finishTrip();
         }
     }
-
 
 }
