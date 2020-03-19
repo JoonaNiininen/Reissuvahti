@@ -21,6 +21,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.reissuvahti.NearbyTask;
 import com.example.reissuvahti.R;
 import com.example.reissuvahti.overpass.OverpassLocation;
 import com.example.reissuvahti.overpass.OverpassResponse;
@@ -39,6 +40,7 @@ import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
@@ -72,6 +74,10 @@ public class TripActivity extends AppCompatActivity {
 
     private List<Button> nearbyButtons = new ArrayList<>();
     private List<Button> overviewButtons = new ArrayList<>();
+
+    public List<Button> getNearbyButtons(){
+        return nearbyButtons;
+    }
 
 
 
@@ -254,7 +260,7 @@ public class TripActivity extends AppCompatActivity {
                 taskParams.add(LATITUDE);
                 taskParams.add(LONGITUDE);
 
-                NearbyTask fetchLocationsTask = new NearbyTask();
+                NearbyTask fetchLocationsTask = new NearbyTask(new WeakReference<TripActivity>(TripActivity.this));
                 fetchLocationsTask.execute(taskParams);
             }
         }
@@ -291,88 +297,7 @@ public class TripActivity extends AppCompatActivity {
     }
     };
 
-    protected class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocation>> {
 
-            @Override
-            protected void onPreExecute() {
-                ProgressBar progressBar = findViewById(R.id.progressBar);
-                progressBar.setVisibility(View.VISIBLE);
-                progressBar.animate();
-            }
-
-            @SafeVarargs
-            @Override
-            protected final List<OverpassLocation> doInBackground(List<Double>... coordinates) {
-                List<Double> passedList = coordinates[0];
-                Double latitude = passedList.get(0);
-                Double longitude = passedList.get(1);
-                List<OverpassLocation> nearbyLocations = new ArrayList<>();
-                URL endpoint = null;
-                try {
-                    endpoint = new URL(OVERPASS_ENDPOINT_URL);
-                } catch (MalformedURLException e) {
-                    e.printStackTrace();
-                }
-                HttpURLConnection urlConn = null;
-                try {
-                    assert endpoint != null;
-                    urlConn = (HttpURLConnection) endpoint.openConnection();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                if(latitude == null || longitude == null)return null;
-                String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[name];" +
-                        "out;");
-                try {
-                    assert urlConn != null;
-                    urlConn.setDoOutput(true);
-                    urlConn.setRequestMethod("POST");
-                    urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
-
-                    BufferedOutputStream writer = new BufferedOutputStream(urlConn.getOutputStream());
-                    writer.write(apiQuery.getBytes());
-                    writer.flush();
-                    writer.close();
-
-                    InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
-                    JsonReader reader = new JsonReader(in);
-                    OverpassResponse overpassResponse = new Gson().fromJson(reader, OverpassResponse.class);
-                    nearbyLocations = Arrays.asList(overpassResponse.getElements());
-                } catch (ProtocolException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } finally {
-                    assert urlConn != null;
-                    urlConn.disconnect();
-                }
-                return nearbyLocations;
-            }
-
-
-        @Override
-        protected void onPostExecute(List<OverpassLocation> locations) {
-            ProgressBar progressBar = findViewById(R.id.progressBar);
-            TextView addressText = findViewById(R.id.currentNearbyLocations);
-            StringBuilder temp = new StringBuilder();
-            int iter = 0;
-            if (locations.isEmpty()) {
-            progressBar.setVisibility(View.GONE);
-            return;
-            }
-            for (OverpassLocation loc : locations) {
-                temp.append(loc.getTags().getName()).append(" ");
-                if (iter < 5) {
-                    nearbyButtons.get(iter).setVisibility(View.VISIBLE);
-                    nearbyButtons.get(iter).setText(loc.getTags().getName());
-                }
-                iter++;
-            }
-            addressText.setText(temp);
-            progressBar.setVisibility(View.GONE);
-
-        }
-    }
 
     protected class FinishTripTask extends AsyncTask<List<OverpassLocation>, Void, String> {
 
