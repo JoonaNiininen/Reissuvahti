@@ -2,6 +2,7 @@ package com.example.reissuvahti;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.AsyncTask;
@@ -11,45 +12,130 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.reissuvahti.overpass.OverpassLocation;
+import com.example.reissuvahti.overpass.OverpassResponse;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
+import com.google.gson.Gson;
 import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonToken;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class TripActivity extends AppCompatActivity {
     private static final int REQUEST_CODE_LOCATION = 1;
-    protected Double latitude = null;
-    protected Double longitude = null;
-    /*
-    protected Double latitude = 63.826729;
-    protected Double longitude = 23.1528061;
-*/
+    Double latitude = null;
+    Double longitude = null;
+    List<String> currentTrip = new ArrayList<>();
+    List<Button> nearbyButtons = new ArrayList<>();
+    List<Button> overviewButtons = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_trip);
-        if(latitude == null || longitude == null) {
-            getCurrentLocation();
+        try
+        {
+            this.getSupportActionBar().hide();
         }
-        findViewById(R.id.addStop).setOnClickListener(new View.OnClickListener() {
+        catch (NullPointerException e){
+            e.printStackTrace();
+        }
+        setContentView(R.layout.activity_trip);
+        getCurrentLocation();
+    }
+
+    @Override
+    public void onBackPressed() {
+        new AlertDialog.Builder(this)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle("Oletko varma?")
+                .setMessage("Haluatko varmasti peruuttaa reissun?")
+                .setPositiveButton("Kyllä", new DialogInterface.OnClickListener()
+                {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        finish();
+                    }
+
+                })
+                .setNegativeButton("Ei", null)
+                .show();
+    }
+    @Override
+    protected void onStart() {
+        super.onStart();
+
+        ScheduledExecutorService scheduler =
+                Executors.newSingleThreadScheduledExecutor();
+
+        scheduler.scheduleAtFixedRate
+                (new Runnable() {
+                    public void run() {
+                        getCurrentLocation();
+                    }
+                }, 0, 10, TimeUnit.SECONDS);
+
+        Button addStop = findViewById(R.id.addStop);
+        final TextView latitudeText = findViewById(R.id.currentStopLatitude);
+        final TextView longitudeText = findViewById(R.id.currentStopLongitude);
+
+        addStop.setKeepScreenOn(true);
+
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyA));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyB));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyC));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyD));
+        nearbyButtons.add((Button) findViewById(R.id.btnNearbyE));
+
+        Button.OnClickListener nearbyList = new Button.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (v.isEnabled()) {
+                    String name = ((Button) v).getText().toString();
+                    addLocation(name);
+                    for (int i = 0; i < 5; i++) {
+                        nearbyButtons.get(i).setVisibility(View.GONE);
+                    }
+
+                    currentTrip.add(name);
+
+                }
+            }
+        };
+
+        for (int i = 0; i<5; i++) {
+            nearbyButtons.get(i).setOnClickListener(nearbyList);
+        }
+
+
+
+        getCurrentLocation();
+        addStop.setEnabled(true);
+
+        addStop.setOnClickListener(new View.OnClickListener() {
             @SuppressLint("SetTextI18n")
             @Override
             public void onClick(View v) {
@@ -61,30 +147,31 @@ public class TripActivity extends AppCompatActivity {
                             REQUEST_CODE_LOCATION
                     );
                 } else {
-
-                    final TextView addressText = findViewById(R.id.currentNearbyLocations);
-
                     if(latitude == null || longitude == null) {
-                        TextView latitudeText = findViewById(R.id.currentStopLatitude);
-                        TextView longitudeText = findViewById(R.id.currentStopLongitude);
                         latitudeText.setText("Latitude null");
                         longitudeText.setText("Longitude null");
                         return;
                     }
-                    AsyncTask.execute(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                addressText.setText(getNearbyLocations());
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                        }
-                    });
 
+                    for(int i=0 ; i<5; i++){
+                        nearbyButtons.get(i).setVisibility(View.GONE);
+                    }
+                    getCurrentLocation();
+                    List<Double> taskParams = new ArrayList<>();
+                    taskParams.add(latitude);
+                    taskParams.add(longitude);
+                    NearbyTask fetchLocations = new NearbyTask();
+                    fetchLocations.execute(taskParams);
                 }
             }
         });
+
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        getCurrentLocation();
     }
 
     @Override
@@ -122,9 +209,6 @@ public class TripActivity extends AppCompatActivity {
                                     locationResult.getLocations().get(latestLocationIndex).getLatitude();
                             longitude =
                                     locationResult.getLocations().get(latestLocationIndex).getLongitude();
-                            latitude = round(latitude,6);
-                            longitude = round(longitude, 7);
-
                             TextView latitudeText = findViewById(R.id.currentStopLatitude);
                             TextView longitudeText = findViewById(R.id.currentStopLongitude);
                             latitudeText.setText(String.format("%s", latitude));
@@ -134,116 +218,25 @@ public class TripActivity extends AppCompatActivity {
                 }, Looper.getMainLooper());
     }
 
-    public String getNearbyLocations() throws IOException {
-        String nearbyLocations = "";
-        URL endpoint = new URL("https://overpass-api.de/api/interpreter");
-        HttpURLConnection urlConn = (HttpURLConnection) endpoint.openConnection();
-        if(latitude == null || longitude == null)return null;
-        /*
-        String apiQuery = "data=[out:json][timeout:25];node("
-                .concat(latitude.toString()).concat(",").concat(longitude.toString())
-                .concat(",").concat(latitude.toString()).concat(",")
-                .concat(longitude.toString())
-                .concat(");node(around:150)[\"shop\"];out body;");
-        */
-        String apiQuery = "data=[out:json][timeout:25];node(around:100,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[shop];\n" +
-                "out;");
-        try {
-            urlConn.setDoOutput(true);
-            urlConn.setRequestMethod("POST");
-            urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+    public void addLocation(String name) {
+        Button stopButton = new Button(this);
+        stopButton.setText(name);
 
-            BufferedOutputStream writer = new BufferedOutputStream(urlConn.getOutputStream());
-            writer.write(apiQuery.getBytes());
-            writer.flush();
-            writer.close();
+        overviewButtons.add(stopButton);
 
-            StringBuilder response = new StringBuilder();
-            InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
-            JsonReader reader = new JsonReader(in);
-            boolean doneReading = false;
-
-                JsonToken testToken = reader.peek();
-                if (testToken == JsonToken.BEGIN_ARRAY) {
-                    reader.beginArray();
-                    testToken = reader.peek();
-                    if (testToken == JsonToken.END_ARRAY) return "";
-                    reader.beginObject();
-                } else if (testToken == JsonToken.END_OBJECT) {
-                    reader.endObject();
-                }
-                reader.beginObject();
-                while (reader.hasNext()) {
-                    String element = reader.nextName();
-                    if (element.equals("elements")) {
-                        testToken = reader.peek();
-                        if (testToken == JsonToken.BEGIN_ARRAY) {
-                            reader.beginArray();
-                            testToken = reader.peek();
-                            if (testToken == JsonToken.END_ARRAY)
-                                return "Ei löydetty läheisiä paikkoja";
-                            reader.beginObject();
-                        } else reader.beginObject();
-                        while (!doneReading) {
-                            while (reader.hasNext()) {
-                                String tags = reader.nextName();
-                                if (tags.equals("tags")) {
-                                    reader.beginObject();
-                                    while (reader.hasNext()) {
-                                        String name = reader.nextName();
-                                        if (name.equals("name")) {
-                                            response = response.append(" ").append(reader.nextString());
-                                            //break;
-                                        } else
-                                            reader.skipValue();
-                                    }
-
-                                } else
-                                    reader.skipValue();
-                            }
-
-                            testToken = reader.peek();
-                            if (testToken == JsonToken.END_OBJECT) reader.endObject();
-                            testToken = reader.peek();
-                            if (testToken == JsonToken.END_ARRAY) return response.toString();
-                            testToken = reader.peek();
-                            if (testToken == JsonToken.BEGIN_OBJECT) reader.beginObject();
-                        }
-                    } else
-                        reader.skipValue();
-
-                }
-                reader.endObject();
-
-            nearbyLocations = response.toString();
-
-        } finally {
-            urlConn.disconnect();
-
-        }
-
-        return nearbyLocations;
-
-    }
-
-
-    public void addLocation(String btnName) {
-
-        Button testButton = new Button(this);
-        testButton.setText(btnName);
         LinearLayout tripOverviewLayout = findViewById(R.id.tripOverviewBar);
-        LinearLayout.LayoutParams defaultTripParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
+        LinearLayout.LayoutParams tripOverviewParam = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
 
-        tripOverviewLayout.addView(testButton, defaultTripParameters);
+        tripOverviewLayout.addView(stopButton, tripOverviewParam);
 
-        View.OnClickListener click = new View.OnClickListener() {
+        View.OnClickListener remove = new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 removeLocation(v);
             }
         };
 
-        testButton.setOnClickListener(click);
+        stopButton.setOnClickListener(remove);
     }
 
     public void removeLocation(View view) {
@@ -254,15 +247,90 @@ public class TripActivity extends AppCompatActivity {
     public void finishTrip(View view) {
         Intent finish = new Intent(this, Main.class);
         startActivity(finish);
-
     }
 
-    public static double round(double value, int places) {
-        if (places < 0) throw new IllegalArgumentException();
+    @SuppressLint("StaticFieldLeak")
+    public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocation>> {
+        final TextView addressText = findViewById(R.id.currentNearbyLocations);
+        ProgressBar progressBar = findViewById(R.id.progressBar);
 
-        BigDecimal bd = BigDecimal.valueOf(value);
-        bd = bd.setScale(places, RoundingMode.HALF_UP);
-        return bd.doubleValue();
+        @Override
+        protected void onPreExecute() {
+            progressBar.setVisibility(View.VISIBLE);
+            progressBar.animate();
+        }
+
+        @SafeVarargs
+        @Override
+        protected final List<OverpassLocation> doInBackground(List<Double>... coordinates) {
+            List<Double> passedList = coordinates[0];
+            Double latitude = passedList.get(0);
+            Double longitude = passedList.get(1);
+            List<OverpassLocation> nearbyLocations = new ArrayList<>();
+            URL endpoint = null;
+            try {
+                endpoint = new URL("https://overpass-api.de/api/interpreter");
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            }
+            HttpURLConnection urlConn = null;
+            try {
+                assert endpoint != null;
+                urlConn = (HttpURLConnection) endpoint.openConnection();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            if(latitude == null || longitude == null)return null;
+            String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(latitude.toString()).concat(",").concat(longitude.toString()).concat(")[name];" +
+                    "out;");
+            try {
+                assert urlConn != null;
+                urlConn.setDoOutput(true);
+                urlConn.setRequestMethod("POST");
+                urlConn.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+
+                BufferedOutputStream writer = new BufferedOutputStream(urlConn.getOutputStream());
+                writer.write(apiQuery.getBytes());
+                writer.flush();
+                writer.close();
+
+                InputStreamReader in = new InputStreamReader(urlConn.getInputStream());
+                JsonReader reader = new JsonReader(in);
+                OverpassResponse overpassResponse = new Gson().fromJson(reader, OverpassResponse.class);
+                nearbyLocations = Arrays.asList(overpassResponse.getElements());
+            } catch (ProtocolException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            } finally {
+                assert urlConn != null;
+                urlConn.disconnect();
+            }
+            return nearbyLocations;
+        }
+
+        @SuppressLint("SetTextI18n")
+        @Override
+        protected void onPostExecute(List<OverpassLocation> locations) {
+            StringBuilder temp = new StringBuilder();
+            int iter = 0;
+            if (locations.isEmpty()) {
+            addressText.setText("Ei paikkoja lähistöllä.");
+            progressBar.setVisibility(View.GONE);
+            return;
+            }
+            for (OverpassLocation loc : locations) {
+                temp.append(loc.getTags().getName()).append(" ");
+                if (iter < 5) {
+                    nearbyButtons.get(iter).setVisibility(View.VISIBLE);
+                    nearbyButtons.get(iter).setText(loc.getTags().getName());
+                }
+                iter++;
+            }
+            addressText.setText(temp);
+            progressBar.setVisibility(View.GONE);
+        }
     }
+
 
 }
