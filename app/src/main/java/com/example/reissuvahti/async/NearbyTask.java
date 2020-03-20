@@ -1,9 +1,10 @@
-package com.example.reissuvahti;
+package com.example.reissuvahti.async;
 
 import android.os.AsyncTask;
 import android.view.View;
 import android.widget.ProgressBar;
 
+import com.example.reissuvahti.R;
 import com.example.reissuvahti.overpass.OverpassLocation;
 import com.example.reissuvahti.overpass.OverpassResponse;
 import com.example.reissuvahti.view.TripActivity;
@@ -21,9 +22,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-import static com.example.reissuvahti.Common.LATITUDE;
-import static com.example.reissuvahti.Common.LONGITUDE;
-import static com.example.reissuvahti.Constants.OVERPASS_ENDPOINT_URL;
+import static com.example.reissuvahti.common.Common.LATITUDE;
+import static com.example.reissuvahti.common.Common.LONGITUDE;
+import static com.example.reissuvahti.common.Constants.OVERPASS_ENDPOINT_URL;
 
 public class NearbyTask extends AsyncTask<Void, Void, List<OverpassLocation>> {
     private WeakReference<TripActivity> _tripActivity;

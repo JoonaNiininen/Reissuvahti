@@ -17,8 +17,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
-import com.example.reissuvahti.FinishTripTask;
-import com.example.reissuvahti.NearbyTask;
+import com.example.reissuvahti.async.FinishTripTask;
+import com.example.reissuvahti.async.NearbyTask;
 import com.example.reissuvahti.R;
 import com.example.reissuvahti.overpass.OverpassLocation;
 import com.example.reissuvahti.overpass.OverpassTag;
@@ -34,14 +34,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static com.example.reissuvahti.Common.LATITUDE;
-import static com.example.reissuvahti.Common.LONGITUDE;
-import static com.example.reissuvahti.Common.TRIP_STOP_LIST;
-import static com.example.reissuvahti.Constants.GPS_INITIAL_DELAY;
-import static com.example.reissuvahti.Constants.GPS_UPDATE_INTERVAL;
-import static com.example.reissuvahti.Constants.LOCATION_FASTEST_INTERVAL;
-import static com.example.reissuvahti.Constants.LOCATION_UPDATE_INTERVAL;
-import static com.example.reissuvahti.Constants.REQUEST_CODE_LOCATION;
+import static com.example.reissuvahti.common.Common.LATITUDE;
+import static com.example.reissuvahti.common.Common.LONGITUDE;
+import static com.example.reissuvahti.common.Common.TRIP_STOP_LIST;
+import static com.example.reissuvahti.common.Constants.GPS_INITIAL_DELAY;
+import static com.example.reissuvahti.common.Constants.GPS_UPDATE_INTERVAL;
+import static com.example.reissuvahti.common.Constants.LOCATION_FASTEST_INTERVAL;
+import static com.example.reissuvahti.common.Constants.LOCATION_UPDATE_INTERVAL;
+import static com.example.reissuvahti.common.Constants.REQUEST_CODE_LOCATION;
 
 
 public class TripActivity extends AppCompatActivity {

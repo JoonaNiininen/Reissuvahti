@@ -1,4 +1,4 @@
-package com.example.reissuvahti;
+package com.example.reissuvahti.common;
 
 import com.example.reissuvahti.overpass.OverpassLocation;
 

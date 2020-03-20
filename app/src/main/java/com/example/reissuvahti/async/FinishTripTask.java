@@ -1,12 +1,14 @@
-package com.example.reissuvahti;
+package com.example.reissuvahti.async;
 
 import android.os.AsyncTask;
 import android.view.View;
 import android.widget.ProgressBar;
 
+import com.example.reissuvahti.R;
 import com.example.reissuvahti.overpass.OverpassLocation;
 import com.example.reissuvahti.view.TripActivity;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
@@ -21,9 +23,8 @@ import java.net.URL;
 import java.util.Calendar;
 import java.util.List;
 
-import static com.example.reissuvahti.Common.TRIP_STOP_LIST;
-import static com.example.reissuvahti.Constants.HTTP_OK;
-import static com.example.reissuvahti.Constants.LOCALHOST_URL;
+import static com.example.reissuvahti.common.Common.TRIP_STOP_LIST;
+import static com.example.reissuvahti.common.Constants.LOCALHOST_URL;
 
 public class FinishTripTask extends AsyncTask<Void, Void, String> {
     private WeakReference<TripActivity> _tripActivity;
@@ -49,8 +50,6 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
                 .concat(Integer.toString(calendar.get(Calendar.DATE)))
                 .concat(Integer.toString(calendar.get(Calendar.YEAR)));
 
-        for(int i=0; i<passedList.size(); i++) {
-
 
             try {
                 URL endpoint = new URL(LOCALHOST_URL);
@@ -59,24 +58,28 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
                 urlConn.setRequestMethod("POST");
                 urlConn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
                 urlConn.setRequestProperty("Accept","application/json");
-
-                JSONObject locationObject = new JSONObject();
-                locationObject.put("tripName", tripName);
-                locationObject.put("name", passedList.get(i).getTags().getName());
-                locationObject.put("latitude", passedList.get(i).getLat());
-                locationObject.put("longitude", passedList.get(i).getLon());
+                JSONObject tripObject = new JSONObject();
+                tripObject.put("tripName", tripName);
+                JSONArray locationsArray = new JSONArray();
+                for(int i=0; i<passedList.size(); i++) {
+                    JSONObject location = new JSONObject();
+                    location.put("name", passedList.get(i).getTags().getName());
+                    location.put("latitude", passedList.get(i).getLat());
+                    location.put("longitude", passedList.get(i).getLon());
+                    locationsArray.put(i,location);
+                }
+                tripObject.put("locations", locationsArray);
 
                 BufferedOutputStream outputStream = new BufferedOutputStream
                         (urlConn.getOutputStream());
-                outputStream.write(locationObject.toString().getBytes());
+                outputStream.write(tripObject.toString().getBytes());
                 outputStream.flush();
                 outputStream.close();
 
-                if (urlConn.getResponseCode()==HTTP_OK) {
-                    BufferedReader in = new BufferedReader
-                            (new InputStreamReader(urlConn.getInputStream()));
-                    in.close();
-                }
+                BufferedReader in = new BufferedReader
+                        (new InputStreamReader(urlConn.getInputStream()));
+                in.close();
+
             } catch (ProtocolException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -87,7 +90,7 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
                 assert urlConn != null;
                 urlConn.disconnect();
             }
-        }
+
         return "OK";
     }
 
@@ -97,6 +100,5 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
         ProgressBar progressBar = _tripActivity.get().findViewById(R.id.progressBar);
         passedList.clear();
         progressBar.setVisibility(View.GONE);
-        //_tripActivity.get().finishTrip();
     }
 }
