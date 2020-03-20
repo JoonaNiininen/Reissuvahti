@@ -4,14 +4,12 @@ import android.Manifest;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,33 +19,18 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
+import com.example.reissuvahti.FinishTripTask;
 import com.example.reissuvahti.NearbyTask;
 import com.example.reissuvahti.R;
 import com.example.reissuvahti.overpass.OverpassLocation;
-import com.example.reissuvahti.overpass.OverpassResponse;
 import com.example.reissuvahti.overpass.OverpassTag;
 import com.google.android.gms.location.LocationCallback;
 import com.google.android.gms.location.LocationRequest;
 import com.google.android.gms.location.LocationResult;
 import com.google.android.gms.location.LocationServices;
-import com.google.gson.Gson;
-import com.google.gson.stream.JsonReader;
 
-import org.json.JSONException;
-import org.json.JSONObject;
-
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
-import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
-import java.net.URL;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Executors;
@@ -57,21 +40,14 @@ import java.util.concurrent.TimeUnit;
 import static com.example.reissuvahti.Common.LATITUDE;
 import static com.example.reissuvahti.Common.LONGITUDE;
 import static com.example.reissuvahti.Common.TRIP_STOP_LIST;
-import static com.example.reissuvahti.Constants.FIRST_LOCATION;
 import static com.example.reissuvahti.Constants.GPS_INITIAL_DELAY;
 import static com.example.reissuvahti.Constants.GPS_UPDATE_INTERVAL;
-import static com.example.reissuvahti.Constants.LOCALHOST_URL;
 import static com.example.reissuvahti.Constants.LOCATION_FASTEST_INTERVAL;
 import static com.example.reissuvahti.Constants.LOCATION_UPDATE_INTERVAL;
-import static com.example.reissuvahti.Constants.OVERPASS_ENDPOINT_URL;
 import static com.example.reissuvahti.Constants.REQUEST_CODE_LOCATION;
-import static com.example.reissuvahti.Constants.HTTP_OK;
 
 
 public class TripActivity extends AppCompatActivity {
-
-
-
     private List<Button> nearbyButtons = new ArrayList<>();
     private List<Button> overviewButtons = new ArrayList<>();
 
@@ -256,12 +232,9 @@ public class TripActivity extends AppCompatActivity {
                     nearbyButtons.get(i).setVisibility(View.GONE);
                 }
                 getCurrentLocation();
-                List<Double> taskParams = new ArrayList<>();
-                taskParams.add(LATITUDE);
-                taskParams.add(LONGITUDE);
 
-                NearbyTask fetchLocationsTask = new NearbyTask(new WeakReference<TripActivity>(TripActivity.this));
-                fetchLocationsTask.execute(taskParams);
+                NearbyTask fetchLocationsTask = new NearbyTask(new WeakReference<>(TripActivity.this));
+                fetchLocationsTask.execute();
             }
         }
     };
@@ -292,110 +265,13 @@ public class TripActivity extends AppCompatActivity {
     View.OnClickListener finishTripListener = new View.OnClickListener() {
         @Override
         public void onClick(View view) {
-            FinishTripTask finishTask = new FinishTripTask();
-            finishTask.execute(TRIP_STOP_LIST);
+            FinishTripTask finishTask = new FinishTripTask(new WeakReference<>(TripActivity.this));
+            finishTask.execute();
     }
     };
 
 
 
-    protected class FinishTripTask extends AsyncTask<List<OverpassLocation>, Void, String> {
 
-        @Override
-        protected void onPreExecute() {
-            ProgressBar progressBar = findViewById(R.id.progressBar);
-            progressBar.setVisibility(View.VISIBLE);
-            progressBar.animate();
-        }
-
-        @SafeVarargs
-        @Override
-        protected final String doInBackground(List<OverpassLocation>... locations) {
-            List<OverpassLocation> passedList = locations[FIRST_LOCATION];
-            URL endpoint = null;
-            String result = null;
-            Calendar calendar = Calendar.getInstance();
-            String tripName = Integer.toString(calendar.get(Calendar.HOUR_OF_DAY))
-                    .concat(Integer.toString(calendar.get(Calendar.MINUTE)))
-                    .concat(Integer.toString(calendar.get(Calendar.DATE)))
-                    .concat(Integer.toString(calendar.get(Calendar.YEAR)));
-
-            try {
-                endpoint = new URL(LOCALHOST_URL);
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-            }
-            for(int i=0; i<passedList.size(); i++) {
-
-                HttpURLConnection urlConn = null;
-                try {
-                    assert endpoint != null;
-                    urlConn = (HttpURLConnection) endpoint.openConnection();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-
-                try {
-                    assert urlConn != null;
-                    urlConn.setDoOutput(true);
-                    urlConn.setRequestMethod("POST");
-                    urlConn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
-                    urlConn.setRequestProperty("Accept","application/json");
-
-                    JSONObject locationObject = new JSONObject();
-                    locationObject.put("tripName", tripName);
-                    locationObject.put("name", passedList.get(i).getTags().getName());
-                    locationObject.put("latitude", passedList.get(i).getLat());
-                    locationObject.put("longitude", passedList.get(i).getLon());
-
-                    BufferedOutputStream outputStream = new BufferedOutputStream(urlConn.getOutputStream());
-                    outputStream.write(locationObject.toString().getBytes());
-                    outputStream.flush();
-                    outputStream.close();
-
-
-                    int responseCode = (urlConn.getResponseCode());
-
-
-                    if (responseCode==HTTP_OK) {
-                        BufferedReader in = new BufferedReader(new InputStreamReader(
-                                urlConn.getInputStream()));
-                        String inputLine;
-                        StringBuffer response = new StringBuffer();
-
-                        while ((inputLine = in.readLine()) != null) {
-                            response.append(inputLine);
-                        }
-                        in.close();
-
-                        result = "Ladattu palvelimelle";
-                        System.out.println(response);
-                    } else result = "Epäonnistui";
-
-
-
-                } catch (ProtocolException e) {
-                    e.printStackTrace();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                } finally {
-                    assert urlConn != null;
-                    urlConn.disconnect();
-                }
-            }
-            return result;
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            ProgressBar progressBar = findViewById(R.id.progressBar);
-            super.onPostExecute(result);
-            TRIP_STOP_LIST.clear();
-            progressBar.setVisibility(View.GONE);
-            finishTrip();
-        }
-    }
 
 }

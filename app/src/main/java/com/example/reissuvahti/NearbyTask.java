@@ -25,7 +25,7 @@ import static com.example.reissuvahti.Common.LATITUDE;
 import static com.example.reissuvahti.Common.LONGITUDE;
 import static com.example.reissuvahti.Constants.OVERPASS_ENDPOINT_URL;
 
-public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocation>> {
+public class NearbyTask extends AsyncTask<Void, Void, List<OverpassLocation>> {
     private WeakReference<TripActivity> _tripActivity;
 
     public NearbyTask(WeakReference<TripActivity> activityReference){
@@ -39,9 +39,8 @@ public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocat
         progressBar.animate();
     }
 
-    @SafeVarargs
     @Override
-    protected final List<OverpassLocation> doInBackground(List<Double>... coordinates) {
+    protected final List<OverpassLocation> doInBackground(Void... aVoid) {
         List<OverpassLocation> nearbyLocations = new ArrayList<>();
         HttpURLConnection urlConn = null;
 
@@ -86,12 +85,11 @@ public class NearbyTask extends AsyncTask<List<Double>, Void, List<OverpassLocat
             return;
         }
 
-        for(int i=0; i< 5; i++) {
+        for(int i=0; (i < 5 && i<locations.size()); i++) {
             _tripActivity.get().getNearbyButtons().get(i).setVisibility(View.VISIBLE);
             _tripActivity.get().getNearbyButtons().get(i).setText(locations.get(i).getTags().getName());
         }
 
         progressBar.setVisibility(View.GONE);
-
     }
 }
