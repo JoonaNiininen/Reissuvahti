@@ -2,7 +2,6 @@ package com.example.reissuvahti.view;
 
 import android.Manifest;
 import android.content.DialogInterface;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Looper;
@@ -10,7 +9,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.LinearLayout;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -31,7 +29,6 @@ import com.google.android.gms.location.LocationServices;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -48,50 +45,39 @@ import static com.example.reissuvahti.Constants.REQUEST_CODE_LOCATION;
 
 
 public class TripActivity extends AppCompatActivity {
-    private List<Button> nearbyButtons = new ArrayList<>();
-    private List<Button> overviewButtons = new ArrayList<>();
+    private List<Button> _nearbyButtonsList = new ArrayList<>();
+    private List<Button> _overviewButtonsList = new ArrayList<>();
 
     public List<Button> getNearbyButtons(){
-        return nearbyButtons;
+        return _nearbyButtonsList;
     }
-
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        try
-        {
-            if (this.getSupportActionBar()!=null){
-                this.getSupportActionBar().hide();
-            }
-        }
-        catch (NullPointerException e){
-            e.printStackTrace();
+        if (this.getSupportActionBar()!=null){
+            this.getSupportActionBar().hide();
         }
         setContentView(R.layout.activity_trip);
 
     }
 
-
-
     @Override
     protected void onStart() {
         super.onStart();
-        final Button finish = findViewById(R.id.finishTrip);
-        final Button addStop = findViewById(R.id.addStop);
-        addStop.setKeepScreenOn(true);
-        finish.setOnClickListener(finishTripListener);
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyA));
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyB));
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyC));
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyD));
-        nearbyButtons.add((Button) findViewById(R.id.btnNearbyE));
+        final Button finishButton = findViewById(R.id.finishTrip);
+        final Button addStopButton = findViewById(R.id.addStop);
+        finishButton.setOnClickListener(finishTripListener);
+        addStopButton.setOnClickListener(addStopListener);
+        addStopButton.setKeepScreenOn(true);
+        _nearbyButtonsList.add((Button) findViewById(R.id.btnNearbyA));
+        _nearbyButtonsList.add((Button) findViewById(R.id.btnNearbyB));
+        _nearbyButtonsList.add((Button) findViewById(R.id.btnNearbyC));
+        _nearbyButtonsList.add((Button) findViewById(R.id.btnNearbyD));
+        _nearbyButtonsList.add((Button) findViewById(R.id.btnNearbyE));
         for (int i = 0; i<5; i++) {
-            nearbyButtons.get(i).setOnClickListener(nearbyListListener);
+            _nearbyButtonsList.get(i).setOnClickListener(nearbyListListener);
         }
-        addStop.setEnabled(true);
-        addStop.setOnClickListener(addStopListener);
 
         ScheduledExecutorService scheduler =
                 Executors.newSingleThreadScheduledExecutor();
@@ -102,9 +88,8 @@ public class TripActivity extends AppCompatActivity {
                         getCurrentLocation();
                     }
                 }, GPS_INITIAL_DELAY, GPS_UPDATE_INTERVAL, TimeUnit.SECONDS);
+
     }
-
-
 
     @Override
     public void onBackPressed() {
@@ -165,55 +150,42 @@ public class TripActivity extends AppCompatActivity {
                                     locationResult.getLocations().get(latestLocationIndex).getLatitude();
                             LONGITUDE =
                                     locationResult.getLocations().get(latestLocationIndex).getLongitude();
-                            TextView latitudeText = findViewById(R.id.currentStopLatitude);
-                            TextView longitudeText = findViewById(R.id.currentStopLongitude);
-                            latitudeText.setText(String.format("%s", LATITUDE));
-                            longitudeText.setText(String.format("%s", LONGITUDE));
+
                         }
                     }
                 }, Looper.getMainLooper());
     }
 
-    public void addLocation(OverpassLocation loc) {
+    public void addLocation(OverpassLocation location) {
         Button stopButton = new Button(this);
-        stopButton.setText(loc.getTags().getName());
-        overviewButtons.add(stopButton);
+        stopButton.setText(location.getTags().getName());
+        stopButton.setOnClickListener(remove);
+
+        _overviewButtonsList.add(stopButton);
 
         LinearLayout tripOverviewLayout = findViewById(R.id.tripOverviewBar);
         LinearLayout.LayoutParams tripOverviewParam = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.MATCH_PARENT);
-
         tripOverviewLayout.addView(stopButton, tripOverviewParam);
-
-        View.OnClickListener remove = new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                removeLocation(v);
-            }
-        };
-
-        stopButton.setOnClickListener(remove);
     }
 
     public void removeLocation(View view) {
         LinearLayout tripOverviewLayout = findViewById(R.id.tripOverviewBar);
         Button findButton = (Button) view;
-        for (Iterator<Button> iterator = overviewButtons.iterator(); iterator.hasNext(); ) {
-            if (findButton.getText().equals((iterator.next().getText())))
-                iterator.remove();
+
+        for (int i = 0; i< _overviewButtonsList.size(); i++) {
+            if (findButton.getText().equals(_overviewButtonsList.get(i).getText()))
+                _overviewButtonsList.remove(i);
+            if (findButton.getText().equals(TRIP_STOP_LIST.get(i).getTags().getName())) {
+                TRIP_STOP_LIST.remove(i);
+                break;
+            }
         }
         tripOverviewLayout.removeView(view);
-    }
-
-    public void finishTrip() {
-        Intent finish = new Intent(this, MainActivity.class);
-        startActivity(finish);
     }
 
     View.OnClickListener addStopListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
-            final TextView latitudeText = findViewById(R.id.currentStopLatitude);
-            final TextView longitudeText = findViewById(R.id.currentStopLongitude);
             if (ContextCompat.checkSelfPermission(
                     getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED) {
@@ -222,15 +194,12 @@ public class TripActivity extends AppCompatActivity {
                         REQUEST_CODE_LOCATION
                 );
             } else {
-                if(LATITUDE == null || LONGITUDE == null) {
-                    latitudeText.setText(null);
-                    longitudeText.setText(null);
-                    return;
-                }
+                if(LATITUDE == null || LONGITUDE == null) return;
 
                 for(int i=0 ; i<5; i++){
-                    nearbyButtons.get(i).setVisibility(View.GONE);
+                    _nearbyButtonsList.get(i).setVisibility(View.GONE);
                 }
+
                 getCurrentLocation();
 
                 NearbyTask fetchLocationsTask = new NearbyTask(new WeakReference<>(TripActivity.this));
@@ -242,36 +211,46 @@ public class TripActivity extends AppCompatActivity {
     View.OnClickListener nearbyListListener = new View.OnClickListener() {
         @Override
         public void onClick(View view) {
-            if (view.isEnabled()) {
-                String name = ((Button) view).getText().toString();
-                OverpassLocation loc = new OverpassLocation();
-                OverpassTag tag = new OverpassTag();
-                tag.setName(name);
-                loc.setTags(tag);
-                loc.setLat(LATITUDE);
-                loc.setLon(LONGITUDE);
+            OverpassLocation location = new OverpassLocation();
+            OverpassTag tag = new OverpassTag();
+            tag.setName(((Button) view).getText().toString());
+            location.setTags(tag);
+            location.setLat(LATITUDE);
+            location.setLon(LONGITUDE);
 
+            addLocation(location);
+            TRIP_STOP_LIST.add(location);
 
-                addLocation(loc);
-                TRIP_STOP_LIST.add(loc);
-
-                for (int i = 0; i < 5; i++) {
-                    nearbyButtons.get(i).setVisibility(View.GONE);
-                }
+            for (int i = 0; i < 5; i++) {
+                _nearbyButtonsList.get(i).setVisibility(View.GONE);
             }
+        }
+    };
+
+    View.OnClickListener remove = new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            removeLocation(v);
         }
     };
 
     View.OnClickListener finishTripListener = new View.OnClickListener() {
         @Override
         public void onClick(View view) {
-            FinishTripTask finishTask = new FinishTripTask(new WeakReference<>(TripActivity.this));
-            finishTask.execute();
-    }
+            new AlertDialog.Builder(TripActivity.this)
+                .setIcon(android.R.drawable.ic_dialog_alert)
+                .setTitle("Oletko varma?")
+                .setMessage("Onko reissu valmis?")
+                .setPositiveButton("Kyllä", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        FinishTripTask finishTask = new FinishTripTask(new WeakReference<>(TripActivity.this));
+                        finishTask.execute();
+                        finish();
+                    }
+                })
+                .setNegativeButton("Ei", null)
+                .show();
+        }
     };
-
-
-
-
-
 }

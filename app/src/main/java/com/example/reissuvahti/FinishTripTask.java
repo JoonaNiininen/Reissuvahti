@@ -97,6 +97,6 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
         ProgressBar progressBar = _tripActivity.get().findViewById(R.id.progressBar);
         passedList.clear();
         progressBar.setVisibility(View.GONE);
-        _tripActivity.get().finishTrip();
+        //_tripActivity.get().finishTrip();
     }
 }
