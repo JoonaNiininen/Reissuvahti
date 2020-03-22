@@ -2,6 +2,7 @@ package com.example.reissuvahti.async;
 
 import android.os.AsyncTask;
 import android.view.View;
+import android.widget.Button;
 import android.widget.ProgressBar;
 
 import com.example.reissuvahti.R;
@@ -50,7 +51,7 @@ public class NearbyTask extends AsyncTask<Void, Void, List<OverpassLocation>> {
             urlConn = (HttpURLConnection) endpoint.openConnection();
 
             if (LATITUDE == null || LONGITUDE == null) return null;
-            String apiQuery = "data=[out:json][timeout:25];node(around:70,".concat(LATITUDE.toString()).concat(",").concat(LONGITUDE.toString()).concat(")[name];" +
+            String apiQuery = "data=[out:json][timeout:25];node(around:80,".concat(LATITUDE.toString()).concat(",").concat(LONGITUDE.toString()).concat(")[shop];" +
                     "out;");
 
             urlConn.setDoOutput(true);
@@ -80,6 +81,8 @@ public class NearbyTask extends AsyncTask<Void, Void, List<OverpassLocation>> {
     @Override
     protected void onPostExecute(List<OverpassLocation> locations) {
         ProgressBar progressBar = _tripActivity.get().findViewById(R.id.progressBar);
+        Button newNearbyLocation = _tripActivity.get().findViewById(R.id.btnNearbyNew);
+        newNearbyLocation.setVisibility(View.VISIBLE);
 
         if (locations.isEmpty()) {
             progressBar.setVisibility(View.GONE);

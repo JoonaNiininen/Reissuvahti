@@ -112,6 +112,12 @@
                 android:text="@string/lis_pys_hdys" />
 
             <Button
+                android:id="@+id/btnNearbyNew"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:visibility="invisible" />
+
+            <Button
                 android:id="@+id/btnNearbyA"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

@@ -1,6 +1,7 @@
 package com.example.reissuvahti.view;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -8,6 +9,7 @@ import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.Toast;
 
@@ -67,6 +69,8 @@ public class TripActivity extends AppCompatActivity {
         super.onStart();
         final Button finishButton = findViewById(R.id.finishTrip);
         final Button addStopButton = findViewById(R.id.addStop);
+        final Button newNearbyLocation = findViewById(R.id.btnNearbyNew);
+        newNearbyLocation.setOnClickListener(addCustomLocationListener);
         finishButton.setOnClickListener(finishTripListener);
         addStopButton.setOnClickListener(addStopListener);
         addStopButton.setKeepScreenOn(true);
@@ -183,9 +187,51 @@ public class TripActivity extends AppCompatActivity {
         tripOverviewLayout.removeView(view);
     }
 
-    View.OnClickListener addStopListener = new View.OnClickListener() {
+    View.OnClickListener addCustomLocationListener = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
+            android.app.AlertDialog.Builder alert = new android.app.AlertDialog.Builder(TripActivity.this);
+            alert.setTitle("Lisää uusi sijainti");
+            alert.setMessage("Syötä sijainnin nimi");
+
+            final EditText input = new EditText(TripActivity.this);
+            alert.setView(input);
+
+            alert.setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                @SuppressLint("SetTextI18n")
+                public void onClick(DialogInterface dialog, int whichButton) {
+                    Button newNearbyLocation = findViewById(R.id.btnNearbyNew);
+                    newNearbyLocation.setText("Lisää uusi sijainti");
+                    OverpassLocation location = new OverpassLocation();
+                    OverpassTag tag = new OverpassTag();
+                    tag.setName(input.getText().toString());
+                    location.setTags(tag);
+                    location.setLat(LATITUDE);
+                    location.setLon(LONGITUDE);
+
+                    addLocation(location);
+                    TRIP_STOP_LIST.add(location);
+                    newNearbyLocation.setVisibility(View.GONE);
+                    for (int i = 0; i < 5; i++) {
+                        _nearbyButtonsList.get(i).setVisibility(View.GONE);
+                    }
+                }
+            });
+
+            alert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                public void onClick(DialogInterface dialog, int whichButton) {
+                }
+            });
+            alert.show();
+        }
+    };
+
+    View.OnClickListener addStopListener = new View.OnClickListener() {
+        @SuppressLint("SetTextI18n")
+        @Override
+        public void onClick(View v) {
+            Button newNearbyLocation = findViewById(R.id.btnNearbyNew);
+            newNearbyLocation.setText("Lisää uusi sijainti");
             if (ContextCompat.checkSelfPermission(
                     getApplicationContext(), Manifest.permission.ACCESS_FINE_LOCATION
             ) != PackageManager.PERMISSION_GRANTED) {
@@ -195,13 +241,11 @@ public class TripActivity extends AppCompatActivity {
                 );
             } else {
                 if(LATITUDE == null || LONGITUDE == null) return;
-
+                newNearbyLocation.setVisibility(View.GONE);
                 for(int i=0 ; i<5; i++){
                     _nearbyButtonsList.get(i).setVisibility(View.GONE);
                 }
-
                 getCurrentLocation();
-
                 NearbyTask fetchLocationsTask = new NearbyTask(new WeakReference<>(TripActivity.this));
                 fetchLocationsTask.execute();
             }
@@ -211,6 +255,7 @@ public class TripActivity extends AppCompatActivity {
     View.OnClickListener nearbyListListener = new View.OnClickListener() {
         @Override
         public void onClick(View view) {
+            Button newNearbyLocation = findViewById(R.id.btnNearbyNew);
             OverpassLocation location = new OverpassLocation();
             OverpassTag tag = new OverpassTag();
             tag.setName(((Button) view).getText().toString());
@@ -220,6 +265,7 @@ public class TripActivity extends AppCompatActivity {
 
             addLocation(location);
             TRIP_STOP_LIST.add(location);
+            newNearbyLocation.setVisibility(View.GONE);
 
             for (int i = 0; i < 5; i++) {
                 _nearbyButtonsList.get(i).setVisibility(View.GONE);
