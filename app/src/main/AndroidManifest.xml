@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.example.reissuvahti">
 
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
@@ -15,7 +16,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <activity android:name=".view.TripActivity">
+        <activity android:name=".view.TripActivity"
+            android:configChanges="orientation|keyboardHidden">
         </activity>
         <activity android:name=".view.MainActivity">
             <intent-filter>

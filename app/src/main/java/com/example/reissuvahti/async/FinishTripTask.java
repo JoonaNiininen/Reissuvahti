@@ -20,11 +20,13 @@ import java.io.InputStreamReader;
 import java.lang.ref.WeakReference;
 import java.net.HttpURLConnection;
 import java.net.ProtocolException;
+import java.net.SocketTimeoutException;
 import java.net.URL;
 import java.util.Calendar;
 import java.util.List;
 
 import static com.example.reissuvahti.common.Common.TRIP_STOP_LIST;
+import static com.example.reissuvahti.common.Constants.CONNECTION_TIMEOUT;
 import static com.example.reissuvahti.common.Constants.LOCALHOST_URL;
 
 public class FinishTripTask extends AsyncTask<Void, Void, String> {
@@ -50,8 +52,8 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
         HttpURLConnection urlConn = null;
         Calendar calendar = Calendar.getInstance();
         String result = null;
-        String tripName = Integer.toString(calendar.get(Calendar.HOUR_OF_DAY))
-                .concat(Integer.toString(calendar.get(Calendar.MINUTE)))
+        String tripName = Integer.toString(calendar.get(Calendar.MINUTE))
+                .concat(Integer.toString(calendar.get(Calendar.HOUR_OF_DAY)))
                 .concat(Integer.toString(calendar.get(Calendar.DATE)))
                 .concat(Integer.toString(calendar.get(Calendar.YEAR)));
 
@@ -59,6 +61,7 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
             try {
                 URL endpoint = new URL(LOCALHOST_URL);
                 urlConn = (HttpURLConnection) endpoint.openConnection();
+                urlConn.setConnectTimeout(CONNECTION_TIMEOUT);
                 urlConn.setDoOutput(true);
                 urlConn.setRequestMethod("POST");
                 urlConn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
@@ -93,6 +96,8 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
 
             } catch (ProtocolException e) {
                 e.printStackTrace();
+            } catch (SocketTimeoutException e) {
+                result = "Ei yhteyttä";
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (JSONException e) {
@@ -111,6 +116,6 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
         ProgressBar progressBar = _tripActivity.get().findViewById(R.id.progressBar);
         passedList.clear();
         progressBar.setVisibility(View.GONE);
-        Toast.makeText(_tripActivity.get(), result, Toast.LENGTH_SHORT).show();
+        Toast.makeText(_tripActivity.get(), result, Toast.LENGTH_LONG).show();
     }
 }
