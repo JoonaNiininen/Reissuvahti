@@ -3,6 +3,7 @@ package com.example.reissuvahti.async;
 import android.os.AsyncTask;
 import android.view.View;
 import android.widget.ProgressBar;
+import android.widget.Toast;
 
 import com.example.reissuvahti.R;
 import com.example.reissuvahti.overpass.OverpassLocation;
@@ -43,8 +44,12 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
 
     @Override
     protected final String doInBackground(Void... aVoid) {
+        if (passedList.size() == 0) {
+            return "Ei pysähdyksiä";
+        }
         HttpURLConnection urlConn = null;
         Calendar calendar = Calendar.getInstance();
+        String result = null;
         String tripName = Integer.toString(calendar.get(Calendar.HOUR_OF_DAY))
                 .concat(Integer.toString(calendar.get(Calendar.MINUTE)))
                 .concat(Integer.toString(calendar.get(Calendar.DATE)))
@@ -80,6 +85,12 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
                         (new InputStreamReader(urlConn.getInputStream()));
                 in.close();
 
+                if (urlConn.getResponseCode() == HttpURLConnection.HTTP_OK) {
+                    result = "Onnistui";
+                } else {
+                    result = "Epäonnistui";
+                }
+
             } catch (ProtocolException e) {
                 e.printStackTrace();
             } catch (IOException e) {
@@ -91,7 +102,7 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
                 urlConn.disconnect();
             }
 
-        return "OK";
+        return result;
     }
 
     @Override
@@ -100,5 +111,6 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
         ProgressBar progressBar = _tripActivity.get().findViewById(R.id.progressBar);
         passedList.clear();
         progressBar.setVisibility(View.GONE);
+        Toast.makeText(_tripActivity.get(), result, Toast.LENGTH_SHORT).show();
     }
 }

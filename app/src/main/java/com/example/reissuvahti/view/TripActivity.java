@@ -70,10 +70,12 @@ public class TripActivity extends AppCompatActivity {
         final Button finishButton = findViewById(R.id.finishTrip);
         final Button addStopButton = findViewById(R.id.addStop);
         final Button newNearbyLocation = findViewById(R.id.btnNearbyNew);
-        newNearbyLocation.setOnClickListener(addCustomLocationListener);
         finishButton.setOnClickListener(finishTripListener);
         addStopButton.setOnClickListener(addStopListener);
+        newNearbyLocation.setOnClickListener(addCustomLocationListener);
+
         addStopButton.setKeepScreenOn(true);
+
         _nearbyButtonsList.add((Button) findViewById(R.id.btnNearbyA));
         _nearbyButtonsList.add((Button) findViewById(R.id.btnNearbyB));
         _nearbyButtonsList.add((Button) findViewById(R.id.btnNearbyC));
@@ -92,7 +94,6 @@ public class TripActivity extends AppCompatActivity {
                         getCurrentLocation();
                     }
                 }, GPS_INITIAL_DELAY, GPS_UPDATE_INTERVAL, TimeUnit.SECONDS);
-
     }
 
     @Override
