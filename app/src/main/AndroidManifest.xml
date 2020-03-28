@@ -15,7 +15,8 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <activity android:name=".view.TripActivity">
+        <activity android:name=".view.TripActivity"
+            android:configChanges="orientation|keyboardHidden">
         </activity>
         <activity android:name=".view.MainActivity">
             <intent-filter>
