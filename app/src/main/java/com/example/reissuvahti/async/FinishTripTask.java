@@ -27,7 +27,7 @@ import java.util.List;
 
 import static com.example.reissuvahti.common.Common.TRIP_STOP_LIST;
 import static com.example.reissuvahti.common.Constants.CONNECTION_TIMEOUT;
-import static com.example.reissuvahti.common.Constants.LOCALHOST_URL;
+import static com.example.reissuvahti.common.Constants.SERVER_URL;
 
 public class FinishTripTask extends AsyncTask<Void, Void, String> {
     private WeakReference<TripActivity> _tripActivity;
@@ -59,7 +59,7 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
 
 
             try {
-                URL endpoint = new URL(LOCALHOST_URL);
+                URL endpoint = new URL(SERVER_URL);
                 urlConn = (HttpURLConnection) endpoint.openConnection();
                 urlConn.setConnectTimeout(CONNECTION_TIMEOUT);
                 urlConn.setDoOutput(true);
