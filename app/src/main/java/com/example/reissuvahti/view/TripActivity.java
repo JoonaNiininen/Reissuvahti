@@ -20,7 +20,7 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 
 import com.example.reissuvahti.async.FinishTripTask;
-import com.example.reissuvahti.async.NearbyTask;
+import com.example.reissuvahti.async.GetNearbyNames;
 import com.example.reissuvahti.R;
 import com.example.reissuvahti.overpass.OverpassLocation;
 import com.example.reissuvahti.overpass.OverpassTag;
@@ -247,7 +247,7 @@ public class TripActivity extends AppCompatActivity {
                     _nearbyButtonsList.get(i).setVisibility(View.GONE);
                 }
                 getCurrentLocation();
-                NearbyTask fetchLocationsTask = new NearbyTask(new WeakReference<>(TripActivity.this));
+                GetNearbyNames fetchLocationsTask = new GetNearbyNames(new WeakReference<>(TripActivity.this));
                 fetchLocationsTask.execute();
             }
         }

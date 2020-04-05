@@ -27,10 +27,10 @@ import static com.example.reissuvahti.common.Common.LATITUDE;
 import static com.example.reissuvahti.common.Common.LONGITUDE;
 import static com.example.reissuvahti.common.Constants.OVERPASS_ENDPOINT_URL;
 
-public class NearbyTask extends AsyncTask<Void, Void, List<OverpassLocation>> {
+public class GetNearbyNames extends AsyncTask<Void, Void, List<OverpassLocation>> {
     private WeakReference<TripActivity> _tripActivity;
 
-    public NearbyTask(WeakReference<TripActivity> activityReference){
+    public GetNearbyNames(WeakReference<TripActivity> activityReference){
         _tripActivity = activityReference;
     }
 

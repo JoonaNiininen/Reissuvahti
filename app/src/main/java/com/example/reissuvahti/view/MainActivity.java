@@ -8,6 +8,8 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.reissuvahti.R;
 
+import java.util.Set;
+
 public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -17,6 +19,11 @@ public class MainActivity extends AppCompatActivity {
 
     public void startTripActivity(View view) {
         Intent intent = new Intent(this, TripActivity.class);
+        startActivity(intent);
+    }
+
+    public void startSettingsActivity(View view) {
+        Intent intent = new Intent(this, SettingsActivity.class);
         startActivity(intent);
     }
 
