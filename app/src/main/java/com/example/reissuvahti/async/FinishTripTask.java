@@ -55,6 +55,7 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
         String tripName = Integer.toString(calendar.get(Calendar.MINUTE))
                 .concat(Integer.toString(calendar.get(Calendar.HOUR_OF_DAY)))
                 .concat(Integer.toString(calendar.get(Calendar.DATE)))
+                .concat(Integer.toString(calendar.get(Calendar.MONTH)))
                 .concat(Integer.toString(calendar.get(Calendar.YEAR)));
 
 
@@ -66,8 +67,10 @@ public class FinishTripTask extends AsyncTask<Void, Void, String> {
                 urlConn.setRequestMethod("POST");
                 urlConn.setRequestProperty("Content-Type", "application/json;charset=UTF-8");
                 urlConn.setRequestProperty("Accept","application/json");
+
                 JSONObject tripObject = new JSONObject();
                 tripObject.put("tripName", tripName);
+                tripObject.put("userName", "pottala");
                 JSONArray locationsArray = new JSONArray();
                 for(int i=0; i<passedList.size(); i++) {
                     JSONObject location = new JSONObject();
